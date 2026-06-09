@@ -2,7 +2,7 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>荒野冒險：四界傳送與黃金商店</title>
+    <title>荒野冒險：英雄崛起與神裝系統</title>
     <style>
         body {
             background-color: #1e1e1e;
@@ -38,7 +38,6 @@
             background: #5c5c5c;
         }
         
-        /* 遊戲與商店並排版面 */
         #game-wrapper {
             display: none;
         }
@@ -52,22 +51,30 @@
             background: #000;
             box-shadow: 0 4px 20px rgba(0,0,0,0.8);
         }
+        
+        /* 升級後的資訊豐富版 HUD */
         #hud {
             display: flex;
             justify-content: space-between;
+            align-items: center;
             width: 640px;
             margin-bottom: 10px;
-            font-size: 16px;
+            font-size: 14px;
             font-weight: bold;
             background: #252525;
-            padding: 8px 12px;
+            padding: 10px 14px;
             border-radius: 4px;
+            border-bottom: 2px solid #444;
+        }
+        .hud-section {
+            display: flex;
+            gap: 15px;
         }
 
-        /* 側邊商店樣式 */
+        /* 側邊商店與裝備欄 */
         #shop-panel {
             background: #2a2a2a;
-            width: 220px;
+            width: 230px;
             padding: 15px;
             border-radius: 6px;
             border: 2px solid #444;
@@ -80,58 +87,84 @@
             border-bottom: 1px solid #444;
             padding-bottom: 8px;
         }
+        .shop-section-title {
+            font-size: 12px;
+            color: #f39c12;
+            margin: 10px 0 5px 0;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
         .shop-item {
             background: #333;
-            padding: 10px;
-            margin-bottom: 10px;
+            padding: 8px 10px;
+            margin-bottom: 8px;
             border-radius: 4px;
             display: flex;
             flex-direction: column;
-            gap: 5px;
+            gap: 4px;
         }
         .shop-item span {
-            font-size: 13px;
+            font-size: 12px;
             color: #bbb;
         }
         .shop-btn {
             background: #27ae60;
             color: white;
             border: none;
-            padding: 6px;
+            padding: 5px;
             cursor: pointer;
             border-radius: 3px;
             font-weight: bold;
+            font-size: 13px;
         }
         .shop-btn:hover {
             background: #2ecc71;
+        }
+        .shop-btn:disabled {
+            background: #555 !important;
+            color: #888;
+            cursor: not-allowed;
         }
     </style>
 </head>
 <body>
 
+    <!-- 開局職業選擇 -->
     <div id="ui-container">
         <h2>選擇你的冒險者職業</h2>
-        <p>選擇後將開啟包含【四張大地圖】與【側邊黃金商店】的遊戲世界</p>
+        <p>本次更新：注入了【角色等級成長機制】與【商店限購裝備系統】</p>
         <button class="btn" onclick="initGame('COMMANDER')">戰術指揮官 (高血量)</button>
         <button class="btn" onclick="initGame('BOUNTY_HUNTER')">賞金獵人 (速度快/雙倍純金)</button>
         <button class="btn" onclick="initGame('ELEMENTALIST')">元素使者 (無視沼澤減速)</button>
     </div>
 
+    <!-- 遊戲主畫面 -->
     <div id="game-wrapper">
+        <!-- 頂部資訊列 -->
         <div id="hud">
-            <span id="hud-map">區域: </span>
-            <span id="hud-hp">血量: </span>
-            <span id="hud-gold" style="color: #f1c40f;">金幣: 0</span>
+            <div class="hud-section">
+                <span id="hud-map" style="color: #3498db;">區域: </span>
+                <span id="hud-level" style="color: #9b5de5;">等級: 1 (0%)</span>
+            </div>
+            <div class="hud-section">
+                <span id="hud-hp" style="color: #e74c3c;">血量: </span>
+                <span id="hud-stats" style="color: #2ecc71;">⚔️ 2.0  🛡️ 0.0</span>
+                <span id="hud-gold" style="color: #f1c40f;">金幣: 0</span>
+            </div>
         </div>
         
         <div class="game-container">
+            <!-- 左側：遊戲地圖 -->
             <div>
                 <canvas id="gameCanvas"></canvas>
-                <p style="color: #888; font-size: 13px; margin-top: 8px; text-align: left;">操作：WASD 或 方向鍵 移動。踩到紫色網格自動傳送。</p>
+                <p style="color: #888; font-size: 13px; margin-top: 8px; text-align: left;">操作：WASD 或 方向鍵 移動。接觸怪物會自動互毆，消滅牠們獲取 EXP！</p>
             </div>
 
+            <!-- 右側：冒險者商店 -->
             <div id="shop-panel">
-                <h3>🛒 補給商店</h3>
+                <h3>🛒 補給與裝備</h3>
+                
+                <div class="shop-section-title">— 消耗品補給 —</div>
                 <div class="shop-item">
                     <strong>🧪 治癒藥水</strong>
                     <span>恢復 50 點生命值</span>
@@ -146,6 +179,18 @@
                     <strong>🥾 風行之靴</strong>
                     <span>基礎移動速度 +0.5</span>
                     <button class="shop-btn" onclick="buyShopItem('SPEED')">70 金幣</button>
+                </div>
+
+                <div class="shop-section-title">— 武器防具 (限購) —</div>
+                <div class="shop-item">
+                    <strong>🗡️ 王者之劍</strong>
+                    <span>攻擊力永久 +1.5</span>
+                    <button id="btn-sword" class="shop-btn" onclick="buyShopItem('SWORD')">100 金幣</button>
+                </div>
+                <div class="shop-item">
+                    <strong>🛡️ 守護之盾</strong>
+                    <span>受到的戰鬥傷害減免 0.15</span>
+                    <button id="btn-armor" class="shop-btn" onclick="buyShopItem('ARMOR')">120 金幣</button>
                 </div>
             </div>
         </div>
@@ -178,13 +223,13 @@ const HERO_CLASSES = {
     ELEMENTALIST: { name: '元素使者', maxHp: 120, baseSpeed: 2.8, ignoreTerrainSlow: true, wildKillMult: 1.0 }
 };
 
-// --- 3. 野生怪獸資料庫 ---
+// --- 3. 野生怪獸資料庫 (新增擊殺 EXP) ---
 const WILD_ENEMY_TYPES = {
-    SLIME: { name: '沼澤史萊姆', maxHp: 100, color: '#4A7c59', baseSpeed: 1.2, nativeTerrain: 1, type: 'HEAL' },
-    GOLEM: { name: '岩石生靈', maxHp: 250, color: '#333333', baseSpeed: 0.8, nativeTerrain: 0, type: 'SPEED_BUFF' }
+    SLIME: { name: '沼澤史萊姆', maxHp: 100, color: '#4A7c59', baseSpeed: 1.2, nativeTerrain: 1, type: 'HEAL', exp: 40 },
+    GOLEM: { name: '岩石生靈', maxHp: 250, color: '#333333', baseSpeed: 0.8, nativeTerrain: 0, type: 'SPEED_BUFF', exp: 90 }
 };
 
-// --- 4. 大地圖陣列 (20 x 15 大解析度) ---
+// --- 4. 四張大地圖資料 (20 x 15 大解析度) ---
 const GAME_MAPS = [
     // 【地圖 0：始源綠洲】
     {
@@ -289,15 +334,45 @@ const GAME_MAPS = [
     }
 ];
 
-// --- 5. 玩家英雄類別 ---
+// --- 5. 玩家英雄類別 (整合等級與裝備屬性) ---
 class Hero {
     constructor(gridX, gridY, classInfo) {
         this.x = gridX * TILE_SIZE + TILE_SIZE / 2;
         this.y = gridY * TILE_SIZE + TILE_SIZE / 2;
         this.classConfig = classInfo;
+        
+        // 生命值系統
         this.hp = classInfo.maxHp;
         this.maxHp = classInfo.maxHp;
         this.baseSpeed = classInfo.baseSpeed;
+
+        // 【新增】等級與經驗值系統
+        this.level = 1;
+        this.exp = 0;
+        this.maxExp = 100; // 第一級需要 100 EXP
+
+        // 【新增】戰鬥屬性與裝備標記
+        this.baseAtk = 2.0;   // 基礎每幀碰撞造成的傷害
+        this.equipAtk = 0.0;  // 武器攻擊加成
+        this.equipDef = 0.0;  // 防具減免加成
+        this.hasSword = false;
+        this.hasArmor = false;
+    }
+
+    // 【新增】獲得經驗值與升級邏輯
+    gainExp(amount) {
+        this.exp += amount;
+        while (this.exp >= this.maxExp) {
+            this.exp -= this.maxExp;
+            this.level++;
+            this.maxExp = this.level * 100; // 下一級經驗公式
+            
+            // 升級屬性成長
+            this.maxHp += 25;       // 最大血量 +25
+            this.hp = this.maxHp;   // 升級直接補滿血 (滿血復活)
+            this.baseAtk += 0.6;    // 基礎攻擊力 +0.6
+            console.log(`恭喜升級！目前等級：Lv.${this.level}`);
+        }
     }
 
     update() {
@@ -359,6 +434,7 @@ class Hero {
 class WildEnemy {
     constructor(gridX, gridY, typeKey) {
         const config = WILD_ENEMY_TYPES[typeKey];
+        this.typeKey = typeKey; // 保留類型名稱用來讀取 EXP
         this.spawnX = gridX * TILE_SIZE + TILE_SIZE / 2;
         this.spawnY = gridY * TILE_SIZE + TILE_SIZE / 2;
         this.x = this.spawnX;
@@ -442,7 +518,7 @@ class WildEnemy {
     }
 }
 
-// --- 7. 商店交易邏輯 ---
+// --- 7. 商店交易與裝備購買邏輯 ---
 function buyShopItem(itemType) {
     if (!player) return;
 
@@ -450,23 +526,47 @@ function buyShopItem(itemType) {
         if (playerGold >= 20) {
             playerGold -= 20;
             player.hp = Math.min(player.maxHp, player.hp + 50);
-            console.log("購買成功：生命值恢復了 50 點");
-        } else { alert("金幣不足！快去打怪賺錢。"); }
+        } else { alert("金幣不足！"); }
     } 
     else if (itemType === 'MAX_HP') {
         if (playerGold >= 50) {
             playerGold -= 50;
             player.maxHp += 30;
-            player.hp += 30; // 上限提升時同時補血
-            console.log("購買成功：最大生命值提升 30 點");
+            player.hp += 30; 
         } else { alert("金幣不足！"); }
     } 
     else if (itemType === 'SPEED') {
         if (playerGold >= 70) {
             playerGold -= 70;
             player.baseSpeed += 0.5;
-            console.log("購買成功：移動速度永久提升 0.5");
         } else { alert("金幣不足！"); }
+    }
+    // 【新增武器防具限購判定】
+    else if (itemType === 'SWORD') {
+        if (player.hasSword) return;
+        if (playerGold >= 100) {
+            playerGold -= 100;
+            player.equipAtk += 1.5; // 攻擊力加成
+            player.hasSword = true;
+            
+            // 更新按鈕UI狀態
+            const btn = document.getElementById('btn-sword');
+            btn.innerText = '已裝備';
+            btn.disabled = true;
+        } else { alert("金幣不足，買不起王者之劍！"); }
+    }
+    else if (itemType === 'ARMOR') {
+        if (player.hasArmor) return;
+        if (playerGold >= 120) {
+            playerGold -= 120;
+            player.equipDef += 0.15; // 固定減傷加成
+            player.hasArmor = true;
+            
+            // 更新按鈕UI狀態
+            const btn = document.getElementById('btn-armor');
+            btn.innerText = '已裝備';
+            btn.disabled = true;
+        } else { alert("金幣不足，買不起守護之盾！"); }
     }
 }
 
@@ -524,24 +624,40 @@ function gameLoop() {
         let dy = enemy.y - player.y;
         let dist = Math.sqrt(dx * dx + dy * dy);
 
+        // 【戰鬥判定整合等級與裝備】
         if (dist < 16) {
-            player.hp -= 0.5;
-            enemy.hp -= 2.0;
+            // 計算防具減傷（最少承受 0.1 點傷害，防止完全無敵沒遊戲體驗）
+            let finalDamageTaken = Math.max(0.1, 0.5 - player.equipDef);
+            player.hp -= finalDamageTaken;
+
+            // 計算最終傷害（基礎攻擊 + 武器加成）
+            let finalDamageDealt = player.baseAtk + player.equipAtk;
+            enemy.hp -= finalDamageDealt;
 
             if (enemy.hp <= 0) {
+                // 獲得金幣
                 playerGold += 20 * player.classConfig.wildKillMult;
+                // 獲得該怪物的經驗值
+                player.gainExp(WILD_ENEMY_TYPES[enemy.typeKey].exp);
+                
                 enemies.splice(index, 1);
             }
 
             if (player.hp <= 0) {
-                alert("你倒在了荒野中...遊戲結束！");
+                alert(`冒險結束！你最終達到了 Lv.${player.level}`);
                 window.location.reload();
             }
         }
     });
 
+    // --- 9. 即時同步擴充版 HUD 欄位 ---
+    let totalAtk = (player.baseAtk + player.equipAtk).toFixed(1);
+    let expPercent = Math.floor((player.exp / player.maxExp) * 100);
+
     document.getElementById('hud-map').innerText = `區域: ${currentMap.name}`;
+    document.getElementById('hud-level').innerText = `等級: ${player.level} (${expPercent}%)`;
     document.getElementById('hud-hp').innerText = `血量: ${Math.max(0, Math.floor(player.hp))}/${player.maxHp}`;
+    document.getElementById('hud-stats').innerText = `⚔️ ${totalAtk}  🛡️ ${player.equipDef > 0 ? '0.15' : '0.0'}`;
     document.getElementById('hud-gold').innerText = `金幣: ${playerGold}`;
 
     requestAnimationFrame(gameLoop);
