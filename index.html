@@ -2,7 +2,7 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>荒野冒險：修正版與放大地圖</title>
+    <title>荒野冒險：四界傳送與黃金商店</title>
     <style>
         body {
             background-color: #1e1e1e;
@@ -37,9 +37,15 @@
         .btn:hover {
             background: #5c5c5c;
         }
+        
+        /* 遊戲與商店並排版面 */
         #game-wrapper {
             display: none;
-            text-align: center;
+        }
+        .game-container {
+            display: flex;
+            gap: 20px;
+            align-items: flex-start;
         }
         canvas {
             border: 4px solid #333;
@@ -49,11 +55,55 @@
         #hud {
             display: flex;
             justify-content: space-between;
-            width: 100%;
-            max-width: 640px;
+            width: 640px;
             margin-bottom: 10px;
             font-size: 16px;
             font-weight: bold;
+            background: #252525;
+            padding: 8px 12px;
+            border-radius: 4px;
+        }
+
+        /* 側邊商店樣式 */
+        #shop-panel {
+            background: #2a2a2a;
+            width: 220px;
+            padding: 15px;
+            border-radius: 6px;
+            border: 2px solid #444;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+        }
+        #shop-panel h3 {
+            margin-top: 0;
+            color: #f1c40f;
+            text-align: center;
+            border-bottom: 1px solid #444;
+            padding-bottom: 8px;
+        }
+        .shop-item {
+            background: #333;
+            padding: 10px;
+            margin-bottom: 10px;
+            border-radius: 4px;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        .shop-item span {
+            font-size: 13px;
+            color: #bbb;
+        }
+        .shop-btn {
+            background: #27ae60;
+            color: white;
+            border: none;
+            padding: 6px;
+            cursor: pointer;
+            border-radius: 3px;
+            font-weight: bold;
+        }
+        .shop-btn:hover {
+            background: #2ecc71;
         }
     </style>
 </head>
@@ -61,7 +111,7 @@
 
     <div id="ui-container">
         <h2>選擇你的冒險者職業</h2>
-        <p>修正了英雄無法出現與控制的錯誤</p>
+        <p>選擇後將開啟包含【四張大地圖】與【側邊黃金商店】的遊戲世界</p>
         <button class="btn" onclick="initGame('COMMANDER')">戰術指揮官 (高血量)</button>
         <button class="btn" onclick="initGame('BOUNTY_HUNTER')">賞金獵人 (速度快/雙倍純金)</button>
         <button class="btn" onclick="initGame('ELEMENTALIST')">元素使者 (無視沼澤減速)</button>
@@ -71,17 +121,41 @@
         <div id="hud">
             <span id="hud-map">區域: </span>
             <span id="hud-hp">血量: </span>
-            <span id="hud-gold">金幣: 0</span>
+            <span id="hud-gold" style="color: #f1c40f;">金幣: 0</span>
         </div>
-        <canvas id="gameCanvas"></canvas>
-        <p style="color: #888; font-size: 13px; margin-top: 8px;">操作方式：使用 WASD 或 方向鍵 移動。踩到紫色傳送陣可切換地圖。</p>
+        
+        <div class="game-container">
+            <div>
+                <canvas id="gameCanvas"></canvas>
+                <p style="color: #888; font-size: 13px; margin-top: 8px; text-align: left;">操作：WASD 或 方向鍵 移動。踩到紫色網格自動傳送。</p>
+            </div>
+
+            <div id="shop-panel">
+                <h3>🛒 補給商店</h3>
+                <div class="shop-item">
+                    <strong>🧪 治癒藥水</strong>
+                    <span>恢復 50 點生命值</span>
+                    <button class="shop-btn" onclick="buyShopItem('POTION')">20 金幣</button>
+                </div>
+                <div class="shop-item">
+                    <strong>❤️ 生命結晶</strong>
+                    <span>最大生命上限 +30</span>
+                    <button class="shop-btn" onclick="buyShopItem('MAX_HP')">50 金幣</button>
+                </div>
+                <div class="shop-item">
+                    <strong>🥾 風行之靴</strong>
+                    <span>基礎移動速度 +0.5</span>
+                    <button class="shop-btn" onclick="buyShopItem('SPEED')">70 金幣</button>
+                </div>
+            </div>
+        </div>
     </div>
 
 <script>
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 
-const TILE_SIZE = 32; // 每個格子 32x32
+const TILE_SIZE = 32; 
 let currentMapIndex = 0;
 let player = null;
 let enemies = [];
@@ -90,11 +164,11 @@ const pressedKeys = {};
 
 // --- 1. 地形與簡約配色 ---
 const TERRAIN_TYPES = {
-    0: { name: '平原', color: '#EAEAEA', speedModifier: 1.0, walkable: true },  // 淺灰
-    1: { name: '沼澤', color: '#A0B094', speedModifier: 0.5, walkable: true },  // 莫蘭迪綠
-    2: { name: '岩石', color: '#5A5A5A', speedModifier: 0.0, walkable: false }, // 深灰
-    3: { name: '道路', color: '#FFF2CC', speedModifier: 1.3, walkable: true },  // 淡黃
-    4: { name: '傳送', color: '#9B5DE5', speedModifier: 1.0, walkable: true }   // 神秘紫
+    0: { name: '平原', color: '#EAEAEA', speedModifier: 1.0, walkable: true },  
+    1: { name: '沼澤', color: '#A0B094', speedModifier: 0.5, walkable: true },  
+    2: { name: '岩石', color: '#5A5A5A', speedModifier: 0.0, walkable: false }, 
+    3: { name: '道路', color: '#FFF2CC', speedModifier: 1.3, walkable: true },  
+    4: { name: '傳送', color: '#9B5DE5', speedModifier: 1.0, walkable: true }   
 };
 
 // --- 2. 職業資料庫 ---
@@ -104,15 +178,15 @@ const HERO_CLASSES = {
     ELEMENTALIST: { name: '元素使者', maxHp: 120, baseSpeed: 2.8, ignoreTerrainSlow: true, wildKillMult: 1.0 }
 };
 
-// --- 3. 野生怪物資料庫 ---
+// --- 3. 野生怪獸資料庫 ---
 const WILD_ENEMY_TYPES = {
     SLIME: { name: '沼澤史萊姆', maxHp: 100, color: '#4A7c59', baseSpeed: 1.2, nativeTerrain: 1, type: 'HEAL' },
     GOLEM: { name: '岩石生靈', maxHp: 250, color: '#333333', baseSpeed: 0.8, nativeTerrain: 0, type: 'SPEED_BUFF' }
 };
 
-// --- 4. 四張放大的地圖設定 (20 列 x 15 行，剛好為 640x480 大小) ---
+// --- 4. 大地圖陣列 (20 x 15 大解析度) ---
 const GAME_MAPS = [
-    // 【地圖 0：始源綠洲 (原本的地圖放大版)】
+    // 【地圖 0：始源綠洲】
     {
         name: "Origin Oasis",
         grid: [
@@ -129,7 +203,7 @@ const GAME_MAPS = [
             [2,0,0,0,0,0,0,0,0,0,0,0,3,0,0,0,0,0,0,2],
             [2,0,0,2,2,2,2,2,0,0,0,0,3,3,3,3,0,0,0,2],
             [2,0,0,2,2,2,2,2,0,0,0,0,0,0,0,3,0,0,0,2],
-            [2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,3,0,0,4,2], // 右下角傳送陣
+            [2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,3,0,0,4,2], 
             [2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2]
         ],
         portals: { "18,13": { targetMap: 1, spawnGridX: 2, spawnGridY: 2 } },
@@ -140,7 +214,7 @@ const GAME_MAPS = [
         name: "Whispering Plains",
         grid: [
             [2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2],
-            [2,4,0,0,0,0,0,0,2,0,0,0,0,0,0,0,0,0,0,2], // 左上傳送回地圖 0
+            [2,4,0,0,0,0,0,0,2,0,0,0,0,0,0,0,0,0,0,2], 
             [2,0,3,3,3,3,2,0,0,0,0,3,3,3,3,3,3,0,0,2],
             [2,0,3,0,0,3,2,0,0,0,0,3,0,0,0,0,3,0,0,2],
             [2,0,3,0,0,2,2,2,0,0,0,3,0,2,2,0,3,0,0,2],
@@ -152,7 +226,7 @@ const GAME_MAPS = [
             [2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,3,0,0,0,2],
             [2,2,2,2,2,2,0,0,0,0,0,0,0,0,0,3,0,0,0,2],
             [2,0,0,0,0,0,0,0,2,2,2,2,2,0,0,3,0,0,0,2],
-            [2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,3,0,0,4,2], // 右下傳送去地圖 2
+            [2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,3,0,0,4,2], 
             [2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2]
         ],
         portals: {
@@ -166,7 +240,7 @@ const GAME_MAPS = [
         name: "Muted Swamps",
         grid: [
             [2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2],
-            [2,4,0,0,0,0,1,1,1,1,1,1,1,1,1,0,0,0,0,2], // 左上傳送回地圖 1
+            [2,4,0,0,0,0,1,1,1,1,1,1,1,1,1,0,0,0,0,2], 
             [2,0,0,0,0,0,1,1,1,1,1,1,1,1,1,0,0,0,0,2],
             [2,1,1,1,0,0,0,0,0,1,1,1,1,1,1,1,1,0,0,2],
             [2,1,1,1,1,1,0,0,0,0,0,0,1,1,1,1,1,0,0,2],
@@ -178,7 +252,7 @@ const GAME_MAPS = [
             [2,1,1,1,1,1,1,0,0,0,0,0,1,1,1,1,1,0,0,2],
             [2,1,1,1,1,1,1,1,1,0,0,1,1,1,1,1,1,0,0,2],
             [2,1,1,1,1,1,1,1,1,0,0,0,1,1,1,1,0,0,0,2],
-            [2,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,4,2], // 右下傳送去地圖 3
+            [2,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,4,2], 
             [2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2]
         ],
         portals: {
@@ -192,13 +266,13 @@ const GAME_MAPS = [
         name: "Rocky Crags",
         grid: [
             [2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2],
-            [2,4,3,3,0,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2], // 左上傳送回地圖 2
+            [2,4,3,3,0,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2], 
             [2,0,0,3,0,2,0,0,0,0,0,0,0,0,0,0,0,0,0,2],
             [2,2,0,3,3,3,3,3,3,3,3,3,3,3,3,0,0,2,0,2],
             [2,2,0,2,2,2,2,2,2,2,2,2,2,2,3,2,2,2,0,2],
             [2,2,0,2,0,0,0,0,0,0,0,0,0,2,3,2,0,0,0,2],
             [2,2,0,2,0,2,2,2,2,2,2,2,0,2,3,2,0,2,2,2],
-            [2,2,0,0,0,2,2,4,2,2,2,2,0,0,3,0,0,2,2,2], // 中央偏左有隱藏傳送陣 (7,7) 回初始地圖 0
+            [2,2,0,0,0,2,2,4,2,2,2,2,0,0,3,0,0,2,2,2], 
             [2,2,2,2,2,2,2,0,2,2,2,2,2,2,3,2,2,2,2,2],
             [2,0,0,0,0,0,0,0,0,0,0,0,0,2,3,2,0,0,0,2],
             [2,0,2,2,2,2,2,2,2,2,2,0,0,2,3,2,0,2,0,2],
@@ -215,7 +289,7 @@ const GAME_MAPS = [
     }
 ];
 
-// --- 5. 類別定義：玩家英雄 ---
+// --- 5. 玩家英雄類別 ---
 class Hero {
     constructor(gridX, gridY, classInfo) {
         this.x = gridX * TILE_SIZE + TILE_SIZE / 2;
@@ -232,23 +306,20 @@ class Hero {
         let gridY = Math.floor(this.y / TILE_SIZE);
         let currentTerrain = currentMap.grid[gridY]?.[gridX] || 0;
 
-        // 計算地形對速度的影響
         let speedModifier = TERRAIN_TYPES[currentTerrain].speedModifier;
         if (currentTerrain === 1 && this.classConfig.ignoreTerrainSlow) {
-            speedModifier = 1.0; // 元素使者不被減速
+            speedModifier = 1.0; 
         }
         let currentSpeed = this.baseSpeed * speedModifier;
 
         let nextX = this.x;
         let nextY = this.y;
 
-        // 鍵盤移動監聽
         if (pressedKeys['w'] || pressedKeys['arrowup'])    nextY -= currentSpeed;
         if (pressedKeys['s'] || pressedKeys['arrowdown'])  nextY += currentSpeed;
         if (pressedKeys['a'] || pressedKeys['arrowleft'])  nextX -= currentSpeed;
         if (pressedKeys['d'] || pressedKeys['arrowright']) nextX += currentSpeed;
 
-        // 預測碰撞：不可走入岩石 (walkable: false)
         let nextGridX = Math.floor(nextX / TILE_SIZE);
         let nextGridY = Math.floor(nextY / TILE_SIZE);
         let nextTerrain = currentMap.grid[nextGridY]?.[nextGridX];
@@ -258,29 +329,25 @@ class Hero {
             this.y = nextY;
         }
 
-        // 觸發傳送陣
         if (currentTerrain === 4) {
             let portalKey = `${gridX},${gridY}`;
             let portalTrigger = currentMap.portals[portalKey];
             if (portalTrigger) {
                 currentMapIndex = portalTrigger.targetMap;
-                // 移動至新地圖的重生點
                 this.x = portalTrigger.spawnGridX * TILE_SIZE + TILE_SIZE / 2;
                 this.y = portalTrigger.spawnGridY * TILE_SIZE + TILE_SIZE / 2;
-                resizeCanvasForCurrentMap(); // 刷新 Canvas 尺寸
-                spawnEnemiesForMap();        // 刷新怪物
+                resizeCanvasForCurrentMap(); 
+                spawnEnemiesForMap();        
             }
         }
     }
 
     draw() {
-        // 繪製藍色英雄
         ctx.fillStyle = '#3498db';
         ctx.beginPath();
         ctx.arc(this.x, this.y, 10, 0, Math.PI * 2);
         ctx.fill();
 
-        // 英雄血條
         ctx.fillStyle = '#c0392b';
         ctx.fillRect(this.x - 12, this.y - 16, 24, 3);
         ctx.fillStyle = '#2ecc71';
@@ -288,7 +355,7 @@ class Hero {
     }
 }
 
-// --- 6. 類別定義：野生怪物 ---
+// --- 6. 野生怪物類別 ---
 class WildEnemy {
     constructor(gridX, gridY, typeKey) {
         const config = WILD_ENEMY_TYPES[typeKey];
@@ -327,7 +394,6 @@ class WildEnemy {
         let speedModifier = 1.0;
         if (currentTerrain === 1) speedModifier = 0.5;
 
-        // 地形特異性被動
         if (currentTerrain === this.nativeTerrain) {
             if (this.enemyType === 'HEAL' && this.hp < this.maxHp) {
                 this.hp = Math.min(this.maxHp, this.hp + 0.1);
@@ -342,7 +408,6 @@ class WildEnemy {
         let dyToHero = hero.y - this.y;
         let distToHero = Math.sqrt(dxToHero * dxToHero + dyToHero * dyToHero);
 
-        // 仇恨偵測（80 像素內追擊玩家）
         if (distToHero < 80) {
             this.state = 'CHASE';
             this.targetX = hero.x;
@@ -370,7 +435,6 @@ class WildEnemy {
         ctx.arc(this.x, this.y, 8, 0, Math.PI * 2);
         ctx.fill();
 
-        // 怪物血條
         ctx.fillStyle = '#c0392b';
         ctx.fillRect(this.x - 10, this.y - 12, 20, 2);
         ctx.fillStyle = '#2ecc71';
@@ -378,7 +442,35 @@ class WildEnemy {
     }
 }
 
-// --- 7. 控制與初始化機制 ---
+// --- 7. 商店交易邏輯 ---
+function buyShopItem(itemType) {
+    if (!player) return;
+
+    if (itemType === 'POTION') {
+        if (playerGold >= 20) {
+            playerGold -= 20;
+            player.hp = Math.min(player.maxHp, player.hp + 50);
+            console.log("購買成功：生命值恢復了 50 點");
+        } else { alert("金幣不足！快去打怪賺錢。"); }
+    } 
+    else if (itemType === 'MAX_HP') {
+        if (playerGold >= 50) {
+            playerGold -= 50;
+            player.maxHp += 30;
+            player.hp += 30; // 上限提升時同時補血
+            console.log("購買成功：最大生命值提升 30 點");
+        } else { alert("金幣不足！"); }
+    } 
+    else if (itemType === 'SPEED') {
+        if (playerGold >= 70) {
+            playerGold -= 70;
+            player.baseSpeed += 0.5;
+            console.log("購買成功：移動速度永久提升 0.5");
+        } else { alert("金幣不足！"); }
+    }
+}
+
+// --- 8. 控制與初始化核心 ---
 function resizeCanvasForCurrentMap() {
     let currentMap = GAME_MAPS[currentMapIndex];
     canvas.width = currentMap.grid[0].length * TILE_SIZE;
@@ -400,7 +492,7 @@ function initGame(classKey) {
     resizeCanvasForCurrentMap();
     
     const selectedClass = HERO_CLASSES[classKey];
-    player = new Hero(3, 3, selectedClass); // 初始安全出生在道路 (3,3) 上
+    player = new Hero(3, 3, selectedClass); 
     spawnEnemiesForMap();
 
     window.addEventListener('keydown', e => pressedKeys[e.key.toLowerCase()] = true);
@@ -413,7 +505,6 @@ function gameLoop() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     let currentMap = GAME_MAPS[currentMapIndex];
 
-    // 1. 繪製低飽和度地形
     for (let r = 0; r < currentMap.grid.length; r++) {
         for (let c = 0; c < currentMap.grid[r].length; c++) {
             let terrainType = currentMap.grid[r][c];
@@ -422,11 +513,9 @@ function gameLoop() {
         }
     }
 
-    // 2. 更新並繪製玩家
     player.update();
     player.draw();
 
-    // 3. 怪物邏輯與戰鬥判定
     enemies.forEach((enemy, index) => {
         enemy.update(currentMap.grid, player);
         enemy.draw();
@@ -435,7 +524,6 @@ function gameLoop() {
         let dy = enemy.y - player.y;
         let dist = Math.sqrt(dx * dx + dy * dy);
 
-        // 碰觸肉搏戰
         if (dist < 16) {
             player.hp -= 0.5;
             enemy.hp -= 2.0;
@@ -452,7 +540,6 @@ function gameLoop() {
         }
     });
 
-    // 4. 即時同步 HUD
     document.getElementById('hud-map').innerText = `區域: ${currentMap.name}`;
     document.getElementById('hud-hp').innerText = `血量: ${Math.max(0, Math.floor(player.hp))}/${player.maxHp}`;
     document.getElementById('hud-gold').innerText = `金幣: ${playerGold}`;
