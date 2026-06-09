@@ -2,7 +2,7 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>極簡冒險：荒野傳送門</title>
+    <title>荒野冒險：修正版與放大地圖</title>
     <style>
         body {
             background-color: #1e1e1e;
@@ -14,6 +14,7 @@
             justify-content: center;
             height: 100vh;
             margin: 0;
+            overflow: hidden;
         }
         #ui-container {
             text-align: center;
@@ -48,9 +49,10 @@
         #hud {
             display: flex;
             justify-content: space-between;
-            width: 320px;
+            width: 100%;
+            max-width: 640px;
             margin-bottom: 10px;
-            font-size: 14px;
+            font-size: 16px;
             font-weight: bold;
         }
     </style>
@@ -59,9 +61,9 @@
 
     <div id="ui-container">
         <h2>選擇你的冒險者職業</h2>
-        <p>這將決定你在荒野中的基礎能力與特性</p>
-        <button class="btn" onclick="initGame('COMMANDER')">戰術指揮官 (高血量/平穩)</button>
-        <button class="btn" onclick="initGame('BOUNTY_HUNTER')">賞金獵人 (速度快/高金幣)</button>
+        <p>修正了英雄無法出現與控制的錯誤</p>
+        <button class="btn" onclick="initGame('COMMANDER')">戰術指揮官 (高血量)</button>
+        <button class="btn" onclick="initGame('BOUNTY_HUNTER')">賞金獵人 (速度快/雙倍純金)</button>
         <button class="btn" onclick="initGame('ELEMENTALIST')">元素使者 (無視沼澤減速)</button>
     </div>
 
@@ -71,125 +73,145 @@
             <span id="hud-hp">血量: </span>
             <span id="hud-gold">金幣: 0</span>
         </div>
-        <canvas id="gameCanvas" width="320" height="320"></canvas>
-        <p style="color: #888; font-size: 12px; margin-top: 5px;">操作方式：使用 WASD 或 方向鍵 移動，靠近紫色傳送陣切換地圖</p>
+        <canvas id="gameCanvas"></canvas>
+        <p style="color: #888; font-size: 13px; margin-top: 8px;">操作方式：使用 WASD 或 方向鍵 移動。踩到紫色傳送陣可切換地圖。</p>
     </div>
 
 <script>
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 
-const TILE_SIZE = 32;
+const TILE_SIZE = 32; // 每個格子 32x32
 let currentMapIndex = 0;
 let player = null;
 let enemies = [];
 let playerGold = 0;
 const pressedKeys = {};
 
-// --- 1. 地形與簡約配色定義 ---
+// --- 1. 地形與簡約配色 ---
 const TERRAIN_TYPES = {
     0: { name: '平原', color: '#EAEAEA', speedModifier: 1.0, walkable: true },  // 淺灰
     1: { name: '沼澤', color: '#A0B094', speedModifier: 0.5, walkable: true },  // 莫蘭迪綠
-    2: { name: '岩石', color: '#5A5A5A', speedModifier: 0.0, walkable: false }, // 深灰（阻擋）
+    2: { name: '岩石', color: '#5A5A5A', speedModifier: 0.0, walkable: false }, // 深灰
     3: { name: '道路', color: '#FFF2CC', speedModifier: 1.3, walkable: true },  // 淡黃
     4: { name: '傳送', color: '#9B5DE5', speedModifier: 1.0, walkable: true }   // 神秘紫
 };
 
 // --- 2. 職業資料庫 ---
 const HERO_CLASSES = {
-    COMMANDER: { name: '戰術指揮官', maxHp: 200, baseSpeed: 2.0, ignoreTerrainSlow: false, wildKillMult: 1.0 },
-    BOUNTY_HUNTER: { name: '賞金獵人', maxHp: 100, baseSpeed: 3.0, ignoreTerrainSlow: false, wildKillMult: 2.0 },
-    ELEMENTALIST: { name: '元素使者', maxHp: 120, baseSpeed: 2.2, ignoreTerrainSlow: true, wildKillMult: 1.0 }
+    COMMANDER: { name: '戰術指揮官', maxHp: 200, baseSpeed: 2.5, ignoreTerrainSlow: false, wildKillMult: 1.0 },
+    BOUNTY_HUNTER: { name: '賞金獵人', maxHp: 100, baseSpeed: 3.5, ignoreTerrainSlow: false, wildKillMult: 2.0 },
+    ELEMENTALIST: { name: '元素使者', maxHp: 120, baseSpeed: 2.8, ignoreTerrainSlow: true, wildKillMult: 1.0 }
 };
 
-// --- 3. 怪物資料庫 ---
+// --- 3. 野生怪物資料庫 ---
 const WILD_ENEMY_TYPES = {
-    SLIME: { name: '沼澤史萊姆', maxHp: 100, color: '#4A7c59', baseSpeed: 1.0, nativeTerrain: 1, type: 'HEAL' },
-    GOLEM: { name: '岩石生靈', maxHp: 250, color: '#333333', baseSpeed: 0.6, nativeTerrain: 0, type: 'SPEED_BUFF' }
+    SLIME: { name: '沼澤史萊姆', maxHp: 100, color: '#4A7c59', baseSpeed: 1.2, nativeTerrain: 1, type: 'HEAL' },
+    GOLEM: { name: '岩石生靈', maxHp: 250, color: '#333333', baseSpeed: 0.8, nativeTerrain: 0, type: 'SPEED_BUFF' }
 };
 
-// --- 4. 四張地圖設定 (初始地圖 + 增加的 3 張地圖) ---
+// --- 4. 四張放大的地圖設定 (20 列 x 15 行，剛好為 640x480 大小) ---
 const GAME_MAPS = [
-    // 【地圖 0：始源綠洲（初始地圖）】
+    // 【地圖 0：始源綠洲 (原本的地圖放大版)】
     {
         name: "Origin Oasis",
         grid: [
-            [0, 0, 0, 0, 0, 0, 2, 0, 0, 0],
-            [0, 3, 3, 3, 3, 0, 2, 0, 1, 0],
-            [0, 3, 0, 0, 3, 0, 0, 1, 1, 0],
-            [0, 3, 0, 0, 3, 3, 3, 3, 0, 0],
-            [0, 3, 0, 0, 2, 2, 2, 3, 0, 0],
-            [0, 3, 3, 0, 0, 0, 0, 3, 0, 0],
-            [0, 0, 3, 3, 3, 0, 0, 3, 0, 0],
-            [2, 0, 0, 0, 3, 0, 0, 3, 0, 0],
-            [2, 2, 0, 0, 3, 3, 3, 3, 0, 0],
-            [2, 2, 2, 0, 0, 0, 0, 0, 0, 4] // 右下傳送去地圖 1
+            [2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2],
+            [2,0,0,0,0,0,0,2,0,0,0,0,0,0,0,0,0,1,1,2],
+            [2,0,3,3,3,3,0,2,0,0,0,0,0,0,0,0,0,1,1,2],
+            [2,0,3,0,0,3,0,0,0,0,1,1,1,0,0,0,0,0,0,2],
+            [2,0,3,0,0,3,3,3,3,0,1,1,1,0,2,2,2,0,0,2],
+            [2,0,3,0,0,2,2,2,3,0,0,0,0,0,2,2,2,0,0,2],
+            [2,0,3,3,3,0,0,0,3,0,0,0,0,0,0,3,0,0,0,2],
+            [2,0,0,3,3,3,0,0,3,0,0,0,0,0,0,3,0,0,0,2],
+            [2,2,0,0,0,3,0,0,3,0,0,0,3,3,3,3,0,0,0,2],
+            [2,2,2,0,0,3,3,3,3,0,0,0,3,0,0,0,0,0,0,2],
+            [2,0,0,0,0,0,0,0,0,0,0,0,3,0,0,0,0,0,0,2],
+            [2,0,0,2,2,2,2,2,0,0,0,0,3,3,3,3,0,0,0,2],
+            [2,0,0,2,2,2,2,2,0,0,0,0,0,0,0,3,0,0,0,2],
+            [2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,3,0,0,4,2], // 右下角傳送陣
+            [2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2]
         ],
-        portals: { "9,9": { targetMap: 1, spawnGridX: 1, spawnGridY: 1 } },
-        enemySpawns: [{ x: 8, y: 2, type: 'SLIME' }, { x: 3, y: 7, type: 'GOLEM' }]
+        portals: { "18,13": { targetMap: 1, spawnGridX: 2, spawnGridY: 2 } },
+        enemySpawns: [{ x: 12, y: 3, type: 'SLIME' }, { x: 9, y: 8, type: 'GOLEM' }]
     },
-    // 【地圖 1：低調平原（新增加 1）】
+    // 【地圖 1：低調平原】
     {
         name: "Whispering Plains",
         grid: [
-            [0, 0, 0, 0, 2, 0, 0, 0, 0, 0],
-            [0, 3, 3, 3, 2, 0, 3, 3, 3, 0],
-            [0, 3, 0, 0, 0, 0, 3, 0, 3, 0],
-            [0, 3, 0, 2, 2, 0, 3, 0, 3, 0],
-            [0, 0, 0, 2, 0, 0, 0, 0, 3, 0],
-            [0, 2, 2, 2, 0, 2, 2, 0, 3, 0],
-            [0, 0, 0, 0, 0, 2, 0, 0, 3, 0],
-            [0, 0, 2, 2, 0, 2, 0, 0, 3, 0],
-            [0, 0, 2, 0, 0, 0, 0, 0, 3, 3],
-            [4, 0, 2, 0, 0, 0, 0, 0, 0, 4] // 左下回地圖 0，右下法陣去地圖 2
+            [2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2],
+            [2,4,0,0,0,0,0,0,2,0,0,0,0,0,0,0,0,0,0,2], // 左上傳送回地圖 0
+            [2,0,3,3,3,3,2,0,0,0,0,3,3,3,3,3,3,0,0,2],
+            [2,0,3,0,0,3,2,0,0,0,0,3,0,0,0,0,3,0,0,2],
+            [2,0,3,0,0,2,2,2,0,0,0,3,0,2,2,0,3,0,0,2],
+            [2,0,3,0,0,0,0,2,0,0,0,3,0,2,2,0,3,0,0,2],
+            [2,0,3,3,3,2,0,2,0,0,0,3,0,0,0,0,3,0,0,2],
+            [2,0,0,0,3,2,0,0,0,0,0,3,3,3,3,3,3,0,0,2],
+            [2,0,0,0,3,2,2,2,2,0,0,0,0,0,0,0,0,0,0,2],
+            [2,0,0,0,3,3,3,3,3,3,3,3,3,3,3,3,0,0,0,2],
+            [2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,3,0,0,0,2],
+            [2,2,2,2,2,2,0,0,0,0,0,0,0,0,0,3,0,0,0,2],
+            [2,0,0,0,0,0,0,0,2,2,2,2,2,0,0,3,0,0,0,2],
+            [2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,3,0,0,4,2], // 右下傳送去地圖 2
+            [2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2]
         ],
         portals: {
-            "0,9": { targetMap: 0, spawnGridX: 8, spawnGridY: 8 },
-            "9,9": { targetMap: 2, spawnGridX: 1, spawnGridY: 1 }
+            "1,1": { targetMap: 0, spawnGridX: 17, spawnGridY: 13 },
+            "18,13": { targetMap: 2, spawnGridX: 2, spawnGridY: 2 }
         },
-        enemySpawns: [{ x: 2, y: 4, type: 'GOLEM' }, { x: 7, y: 4, type: 'GOLEM' }]
+        enemySpawns: [{ x: 13, y: 5, type: 'GOLEM' }, { x: 3, y: 11, type: 'GOLEM' }]
     },
-    // 【地圖 2：迷霧沼澤（新增加 2）】
+    // 【地圖 2：迷霧沼澤】
     {
         name: "Muted Swamps",
         grid: [
-            [4, 0, 0, 0, 0, 1, 1, 1, 1, 1], // 左上回地圖 1
-            [0, 0, 0, 0, 0, 1, 1, 1, 1, 1],
-            [1, 1, 1, 0, 0, 0, 1, 1, 1, 1],
-            [1, 1, 1, 1, 1, 0, 0, 1, 1, 1],
-            [1, 1, 1, 1, 1, 1, 0, 0, 0, 1],
-            [1, 1, 0, 0, 0, 1, 1, 1, 0, 1],
-            [1, 0, 0, 1, 0, 0, 1, 1, 0, 1],
-            [1, 0, 1, 1, 1, 0, 0, 0, 0, 1],
-            [1, 0, 1, 1, 1, 1, 1, 1, 0, 0],
-            [1, 1, 1, 1, 1, 1, 1, 1, 0, 4] // 右下去地圖 3
+            [2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2],
+            [2,4,0,0,0,0,1,1,1,1,1,1,1,1,1,0,0,0,0,2], // 左上傳送回地圖 1
+            [2,0,0,0,0,0,1,1,1,1,1,1,1,1,1,0,0,0,0,2],
+            [2,1,1,1,0,0,0,0,0,1,1,1,1,1,1,1,1,0,0,2],
+            [2,1,1,1,1,1,0,0,0,0,0,0,1,1,1,1,1,0,0,2],
+            [2,1,1,1,1,1,1,1,0,0,0,0,0,0,1,1,0,0,0,2],
+            [2,1,1,0,0,0,1,1,1,1,0,0,0,0,1,1,0,0,0,2],
+            [2,1,0,0,0,0,0,1,1,1,1,1,0,0,1,1,1,0,0,2],
+            [2,1,0,0,1,0,0,0,1,1,1,1,0,0,0,1,1,0,0,2],
+            [2,1,0,0,1,1,0,0,0,1,1,0,0,0,0,1,1,0,0,2],
+            [2,1,1,1,1,1,1,0,0,0,0,0,1,1,1,1,1,0,0,2],
+            [2,1,1,1,1,1,1,1,1,0,0,1,1,1,1,1,1,0,0,2],
+            [2,1,1,1,1,1,1,1,1,0,0,0,1,1,1,1,0,0,0,2],
+            [2,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,4,2], // 右下傳送去地圖 3
+            [2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2]
         ],
         portals: {
-            "0,0": { targetMap: 1, spawnGridX: 8, spawnGridY: 8 },
-            "9,9": { targetMap: 3, spawnGridX: 1, spawnGridY: 1 }
+            "1,1": { targetMap: 1, spawnGridX: 17, spawnGridY: 13 },
+            "18,13": { targetMap: 3, spawnGridX: 2, spawnGridY: 2 }
         },
-        enemySpawns: [{ x: 7, y: 2, type: 'SLIME' }, { x: 3, y: 6, type: 'SLIME' }, { x: 8, y: 6, type: 'SLIME' }]
+        enemySpawns: [{ x: 10, y: 5, type: 'SLIME' }, { x: 5, y: 8, type: 'SLIME' }, { x: 15, y: 10, type: 'SLIME' }]
     },
-    // 【地圖 3：巨石迷宮（新增加 3）】
+    // 【地圖 3：巨石迷宮】
     {
         name: "Rocky Crags",
         grid: [
-            [4, 3, 3, 0, 2, 2, 2, 2, 2, 2], // 左上回地圖 2
-            [0, 0, 3, 0, 2, 0, 0, 0, 0, 2],
-            [2, 0, 3, 3, 3, 3, 3, 0, 0, 2],
-            [2, 0, 2, 2, 2, 2, 3, 2, 0, 2],
-            [2, 0, 2, 0, 0, 0, 3, 2, 0, 2],
-            [2, 0, 2, 0, 2, 2, 3, 2, 0, 2],
-            [2, 0, 0, 0, 2, 0, 3, 0, 0, 2],
-            [2, 2, 2, 2, 2, 0, 3, 3, 3, 2],
-            [2, 0, 0, 0, 0, 0, 2, 2, 3, 2],
-            [2, 2, 2, 2, 2, 2, 2, 2, 4, 2] // 底部傳送，循環回地圖 0
+            [2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2],
+            [2,4,3,3,0,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2], // 左上傳送回地圖 2
+            [2,0,0,3,0,2,0,0,0,0,0,0,0,0,0,0,0,0,0,2],
+            [2,2,0,3,3,3,3,3,3,3,3,3,3,3,3,0,0,2,0,2],
+            [2,2,0,2,2,2,2,2,2,2,2,2,2,2,3,2,2,2,0,2],
+            [2,2,0,2,0,0,0,0,0,0,0,0,0,2,3,2,0,0,0,2],
+            [2,2,0,2,0,2,2,2,2,2,2,2,0,2,3,2,0,2,2,2],
+            [2,2,0,0,0,2,2,4,2,2,2,2,0,0,3,0,0,2,2,2], // 中央偏左有隱藏傳送陣 (7,7) 回初始地圖 0
+            [2,2,2,2,2,2,2,0,2,2,2,2,2,2,3,2,2,2,2,2],
+            [2,0,0,0,0,0,0,0,0,0,0,0,0,2,3,2,0,0,0,2],
+            [2,0,2,2,2,2,2,2,2,2,2,0,0,2,3,2,0,2,0,2],
+            [2,0,2,0,0,0,0,0,0,0,2,0,0,2,3,3,3,2,0,2],
+            [2,0,2,0,2,2,2,2,2,0,2,2,2,2,2,2,2,2,0,2],
+            [2,0,0,0,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2],
+            [2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2]
         ],
         portals: {
-            "0,0": { targetMap: 2, spawnGridX: 8, spawnGridY: 8 },
-            "8,9": { targetMap: 0, spawnGridX: 1, spawnGridY: 1 }
+            "1,1": { targetMap: 2, spawnGridX: 17, spawnGridY: 13 },
+            "7,7": { targetMap: 0, spawnGridX: 2, spawnGridY: 2 }
         },
-        enemySpawns: [{ x: 5, y: 1, type: 'GOLEM' }, { x: 3, y: 6, type: 'SLIME' }]
+        enemySpawns: [{ x: 14, y: 7, type: 'GOLEM' }, { x: 2, y: 13, type: 'SLIME' }]
     }
 ];
 
@@ -210,23 +232,23 @@ class Hero {
         let gridY = Math.floor(this.y / TILE_SIZE);
         let currentTerrain = currentMap.grid[gridY]?.[gridX] || 0;
 
-        // 計算受地形影響後的移動速度
+        // 計算地形對速度的影響
         let speedModifier = TERRAIN_TYPES[currentTerrain].speedModifier;
         if (currentTerrain === 1 && this.classConfig.ignoreTerrainSlow) {
-            speedModifier = 1.0; // 元素使者免疫沼澤減速
+            speedModifier = 1.0; // 元素使者不被減速
         }
         let currentSpeed = this.baseSpeed * speedModifier;
 
-        // 計算預期移動
         let nextX = this.x;
         let nextY = this.y;
 
-        if (pressedKeys['w'] || pressedKeys['ArrowUp'])    nextY -= currentSpeed;
-        if (pressedKeys['s'] || pressedKeys['ArrowDown'])  nextY += currentSpeed;
-        if (pressedKeys['a'] || pressedKeys['ArrowLeft'])  nextX -= currentSpeed;
-        if (pressedKeys['d'] || pressedKeys['ArrowRight']) nextX += currentSpeed;
+        // 鍵盤移動監聽
+        if (pressedKeys['w'] || pressedKeys['arrowup'])    nextY -= currentSpeed;
+        if (pressedKeys['s'] || pressedKeys['arrowdown'])  nextY += currentSpeed;
+        if (pressedKeys['a'] || pressedKeys['arrowleft'])  nextX -= currentSpeed;
+        if (pressedKeys['d'] || pressedKeys['arrowright']) nextX += currentSpeed;
 
-        // 碰撞檢查（不可踏入岩石地形 2）
+        // 預測碰撞：不可走入岩石 (walkable: false)
         let nextGridX = Math.floor(nextX / TILE_SIZE);
         let nextGridY = Math.floor(nextY / TILE_SIZE);
         let nextTerrain = currentMap.grid[nextGridY]?.[nextGridX];
@@ -236,33 +258,29 @@ class Hero {
             this.y = nextY;
         }
 
-        // 地圖邊界限制
-        this.x = Math.max(10, Math.min(canvas.width - 10, this.x));
-        this.y = Math.max(10, Math.min(canvas.height - 10, this.y));
-
-        // 檢查傳送陣觸發 (地形 4)
+        // 觸發傳送陣
         if (currentTerrain === 4) {
             let portalKey = `${gridX},${gridY}`;
             let portalTrigger = currentMap.portals[portalKey];
             if (portalTrigger) {
                 currentMapIndex = portalTrigger.targetMap;
-                // 重置角色到新地圖對應的出生點像素座標
+                // 移動至新地圖的重生點
                 this.x = portalTrigger.spawnGridX * TILE_SIZE + TILE_SIZE / 2;
                 this.y = portalTrigger.spawnGridY * TILE_SIZE + TILE_SIZE / 2;
-                // 重新載入新地圖的怪物
-                spawnEnemiesForMap();
+                resizeCanvasForCurrentMap(); // 刷新 Canvas 尺寸
+                spawnEnemiesForMap();        // 刷新怪物
             }
         }
     }
 
     draw() {
-        // 畫出角色本體
+        // 繪製藍色英雄
         ctx.fillStyle = '#3498db';
         ctx.beginPath();
         ctx.arc(this.x, this.y, 10, 0, Math.PI * 2);
         ctx.fill();
 
-        // 畫出血條
+        // 英雄血條
         ctx.fillStyle = '#c0392b';
         ctx.fillRect(this.x - 12, this.y - 16, 24, 3);
         ctx.fillStyle = '#2ecc71';
@@ -287,8 +305,8 @@ class WildEnemy {
         this.nativeTerrain = config.nativeTerrain;
         this.enemyType = config.type;
 
-        this.state = 'WANDER'; // WANDER, CHASE
-        this.wanderRadius = 45;
+        this.state = 'WANDER';
+        this.wanderRadius = 60;
         this.targetX = this.x;
         this.targetY = this.y;
         this.setNewWanderTarget();
@@ -306,40 +324,34 @@ class WildEnemy {
         let gridY = Math.floor(this.y / TILE_SIZE);
         let currentTerrain = mapGrid[gridY]?.[gridX];
 
-        // 基礎地形減速/加成
         let speedModifier = 1.0;
-        if (currentTerrain === 1) speedModifier = 0.5; // 踩到沼澤一般怪會減速
+        if (currentTerrain === 1) speedModifier = 0.5;
 
-        // --- 怪物地形特性天賦 ---
+        // 地形特異性被動
         if (currentTerrain === this.nativeTerrain) {
             if (this.enemyType === 'HEAL' && this.hp < this.maxHp) {
-                this.hp = Math.min(this.maxHp, this.hp + 0.1); // 史萊姆在沼澤內回血
+                this.hp = Math.min(this.maxHp, this.hp + 0.1);
             }
             if (this.enemyType === 'SPEED_BUFF') {
-                speedModifier = 1.4; // 岩石生靈在平原上速度加快
+                speedModifier = 1.4;
             }
         }
 
         let currentSpeed = this.baseSpeed * speedModifier;
-
-        // --- AI 狀態機邏輯 ---
         let dxToHero = hero.x - this.x;
         let dyToHero = hero.y - this.y;
         let distToHero = Math.sqrt(dxToHero * dxToHero + dyToHero * dyToHero);
 
-        // 如果玩家進入警戒範圍(80像素)，進入追擊狀態
+        // 仇恨偵測（80 像素內追擊玩家）
         if (distToHero < 80) {
             this.state = 'CHASE';
             this.targetX = hero.x;
             this.targetY = hero.y;
-        } else {
-            if (this.state === 'CHASE') {
-                this.state = 'WANDER';
-                this.setNewWanderTarget();
-            }
+        } else if (this.state === 'CHASE') {
+            this.state = 'WANDER';
+            this.setNewWanderTarget();
         }
 
-        // 朝目標前進
         let tDx = this.targetX - this.x;
         let tDy = this.targetY - this.y;
         let tDist = Math.sqrt(tDx * tDx + tDy * tDy);
@@ -366,7 +378,13 @@ class WildEnemy {
     }
 }
 
-// --- 7. 核心控制功能 ---
+// --- 7. 控制與初始化機制 ---
+function resizeCanvasForCurrentMap() {
+    let currentMap = GAME_MAPS[currentMapIndex];
+    canvas.width = currentMap.grid[0].length * TILE_SIZE;
+    canvas.height = currentMap.grid.length * TILE_SIZE;
+}
+
 function spawnEnemiesForMap() {
     enemies = [];
     let mapData = GAME_MAPS[currentMapIndex];
@@ -379,15 +397,15 @@ function initGame(classKey) {
     document.getElementById('ui-container').style.display = 'none';
     document.getElementById('game-wrapper').style.display = 'block';
 
+    resizeCanvasForCurrentMap();
+    
     const selectedClass = HERO_CLASSES[classKey];
-    player = new Hero(1, 1, selectedClass); // 初始生成在左上角 (1,1)
+    player = new Hero(3, 3, selectedClass); // 初始安全出生在道路 (3,3) 上
     spawnEnemiesForMap();
 
-    // 監聽鍵盤事件
     window.addEventListener('keydown', e => pressedKeys[e.key.toLowerCase()] = true);
     window.addEventListener('keyup', e => pressedKeys[e.key.toLowerCase()] = false);
 
-    // 啟動主循環
     requestAnimationFrame(gameLoop);
 }
 
@@ -395,7 +413,7 @@ function gameLoop() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     let currentMap = GAME_MAPS[currentMapIndex];
 
-    // 1. 繪製精簡地形網格
+    // 1. 繪製低飽和度地形
     for (let r = 0; r < currentMap.grid.length; r++) {
         for (let c = 0; c < currentMap.grid[r].length; c++) {
             let terrainType = currentMap.grid[r][c];
@@ -408,35 +426,33 @@ function gameLoop() {
     player.update();
     player.draw();
 
-    // 3. 更新並繪製野生怪物、戰鬥碰撞檢測
+    // 3. 怪物邏輯與戰鬥判定
     enemies.forEach((enemy, index) => {
         enemy.update(currentMap.grid, player);
         enemy.draw();
 
-        // 玩家與怪物近身戰鬥碰撞（撕咬扣血）
         let dx = enemy.x - player.x;
         let dy = enemy.y - player.y;
         let dist = Math.sqrt(dx * dx + dy * dy);
 
+        // 碰觸肉搏戰
         if (dist < 16) {
-            player.hp -= 0.4; // 玩家觸碰每幀扣血
-            enemy.hp -= 1.5;   // 玩家同時反擊怪物
+            player.hp -= 0.5;
+            enemy.hp -= 2.0;
 
             if (enemy.hp <= 0) {
-                // 怪物死亡，結算金幣（計算職業加成）
-                let goldReward = 20 * player.classConfig.wildKillMult;
-                playerGold += goldReward;
+                playerGold += 20 * player.classConfig.wildKillMult;
                 enemies.splice(index, 1);
             }
 
             if (player.hp <= 0) {
-                alert("你被野生怪獸擊敗了！遊戲結束。");
+                alert("你倒在了荒野中...遊戲結束！");
                 window.location.reload();
             }
         }
     });
 
-    // 4. 即時更新 HUD 上方面板資訊
+    // 4. 即時同步 HUD
     document.getElementById('hud-map').innerText = `區域: ${currentMap.name}`;
     document.getElementById('hud-hp').innerText = `血量: ${Math.max(0, Math.floor(player.hp))}/${player.maxHp}`;
     document.getElementById('hud-gold').innerText = `金幣: ${playerGold}`;
