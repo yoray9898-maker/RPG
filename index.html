@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <title>2D RPG 勇者試煉</title>
+    <style>
+        body { background: #2c3e50; color: #fff; text-align: center; font-family: sans-serif; }
+        canvas { background: #111; border: 4px solid #34495e; display: block; margin: 20px auto; box-shadow: 0 10px 20px rgba(0,0,0,0.3); }
+        .instructions { font-size: 14px; color: #bdc3c7; }
+    </style>
+</head>
+<body>
+    <h1>勇者試煉 (Hero's Quest)</h1>
+    <p class="instructions">使用 WASD 或 方向鍵 移動 | 靠近村民按下 空白鍵(Space) 對話</p>
+    <canvas id="rpgCanvas" width="640" height="480"></canvas>
+
+    <script>
+        const canvas = document.getElementById('rpgCanvas');
+        const ctx = canvas.getContext('2d');
+
+        const TILE_SIZE = 40; // 每個格子的大小 (40x40 像素)
+        const COLS = 16;      // 16 欄
+        const ROWS = 12;      // 12 列
+
+        // 遊戲狀態：'explore' (探索), 'dialogue' (對話)
+        let gameState = 'explore'; 
+        let currentDialogue = "";
+
+        // 地圖陣列：0=草地, 1=樹木/牆壁, 2=NPC村民
+        const map = [
+            [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+            [1,0,0,0,1,0,0,0,0,0,0,0,0,0,0,1],
+            [1,0,0,0,1,0,0,2,0,0,0,0,0,0,0,1],
+            [1,0,0,0,1,1,1,1,1,0,0,0,0,0,0,1],
+            [1,0,0,0,0,0,0,0,1,0,0,0,0,0,0,1],
+            [1,0,0,0,0,0,0,0,1,0,0,0,0,0,0,1],
+            [1,1,1,0,1,1,1,0,1,1,1,1,0,1,1,1],
+            [1,0,0,0,0,0,1,0,0,0,0,1,0,0,0,1],
+            [1,0,0,0,0,0,1,0,0,0,0,1,0,0,0,1],
+            [1,0,0,0,0,0,1,1,1,0,0,1,1,1,0,1],
+            [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+            [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
+        ];
+
+        // 玩家物件
+        const player = {
+            x: 80,
+            y: 80,
+            width: 32,
+            height: 32,
+            speed: 4,
+            color: '#e74c3c'
+        };
+
+        // 鍵盤輸入監聽
+        const keys = {};
+        window.addEventListener('keydown', e => { keys[e.key] = true; });
+        window.addEventListener('keyup', e => { keys[e.key] = false; });
+
+        // 監聽空白鍵觸發對話
+        window.addEventListener('keypress', e => {
+            if (e.key === ' ') {
+                if (gameState === 'dialogue') {
+                    gameState = 'explore'; // 關閉對話
+                } else if (gameState === 'explore') {
+                    checkInteraction();
+                }
+            }
+        });
+
+        // 檢查玩家是否在 NPC 附近
+        function checkInteraction() {
+            // 計算玩家中心點所在的網格座標
+            let pGridX = Math.floor((player.x + player.width/2) / TILE_SIZE);
+            let pGridY = Math.floor((player.y + player.height/2) / TILE_SIZE);
+
+            // 檢查上下左右相鄰格子是否有 NPC (值為 2)
+            const checkOffsets = [{x:0, y:-1}, {x:0, y:1}, {x:-1, y:0}, {x:1, y:0}];
+            for (let offset of checkOffsets) {
+                let targetX = pGridX + offset.x;
+                let targetY = pGridY + offset.y;
+                
+                if (map[targetY] && map[targetY][targetX] === 2) {
+                    gameState = 'dialogue';
+                    currentDialogue = "村民：「勇敢的冒險者啊！村莊外面的森林最近出現了史萊姆，請加深你的鍛鍊再出發吧！」";
+                    return;
+                }
+            }
+        }
+
+        // 碰撞偵測：傳入預計移動到的新座標，回傳是否撞牆
+        function isColliding(newX, newY) {
+            // 檢查四個角來確保整個矩形都沒有深入牆壁
+            const corners = [
+                { x: newX, y: newY },
+                { x: newX + player.width, y: newY },
+                { x: newX, y: newY + player.height },
+                { x: newX + player.width, y: newY + player.height }
+            ];
+
+            for (let corner of corners) {
+                let gridX = Math.floor(corner.x / TILE_SIZE);
+                let gridY = Math.floor(corner.y / TILE_SIZE);
+
+                // 如果超出邊界，或是該格子是樹木(1)或NPC(2)，就判定為碰撞
+                if (gridY < 0 || gridY >= ROWS || gridX < 0 || gridX >= COLS) return true;
+                if (map[gridY][gridX] === 1 || map[gridY][gridX] === 2) return true;
+            }
+            return false;
+        }
+
+        // 更新遊戲邏輯
+        function update() {
+            if (gameState === 'explore') {
+                let nextX = player.x;
+                let nextY = player.y;
+
+                if (keys['w'] || keys['ArrowUp']) nextY -= player.speed;
+                if (keys['s'] || keys['ArrowDown']) nextY += player.speed;
+                if (keys['a'] || keys['ArrowLeft']) nextX -= player.speed;
+                if (keys['d'] || keys['ArrowRight']) nextX += player.speed;
+
+                // X 軸移動檢查
+                if (!isColliding(nextX, player.y)) {
+                    player.x = nextX;
+                }
+                // Y 軸移動檢查
+                if (!isColliding(player.x, nextY)) {
+                    player.y = nextY;
+                }
+            }
+        }
+
+        // 繪製畫面
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // 1. 繪製地圖
+            for (let r = 0; r < ROWS; r++) {
+                for (let c = 0; c < COLS; c++) {
+                    if (map[r][c] === 1) {
+                        ctx.fillStyle = '#27ae60'; // 樹木/牆壁 (綠色)
+                    } else if (map[r][c] === 2) {
+                        ctx.fillStyle = '#f1c40f'; // NPC 村民 (黃色)
+                    } else {
+                        ctx.fillStyle = '#2ecc71'; // 草地 (淺綠)
+                    }
+                    ctx.fillRect(c * TILE_SIZE, r * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+                    
+                    // 繪製格子邊框（網格線，正式版可拔除）
+                    ctx.strokeStyle = 'rgba(0,0,0,0.05)';
+                    ctx.strokeRect(c * TILE_SIZE, r * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+                }
+            }
+
+            // 2. 繪製玩家
+            ctx.fillStyle = player.color;
+            ctx.fillRect(player.x, player.y, player.width, player.height);
+
+            // 3. 繪製 UI / 對話框
+            if (gameState === 'dialogue') {
+                // 對話黑框
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+                ctx.fillRect(20, canvas.height - 140, canvas.width - 40, 120);
+                ctx.strokeStyle = '#fff';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(20, canvas.height - 140, canvas.width - 40, 120);
+
+                // 對話文字
+                ctx.fillStyle = '#fff';
+                ctx.font = '16px Microsoft JhengHei, sans-serif';
+                ctx.fillText(currentDialogue, 40, canvas.height - 90);
+                
+                ctx.fillStyle = '#bdc3c7';
+                ctx.font = '12px sans-serif';
+                ctx.fillText("按 空白鍵 繼續...", canvas.width - 140, canvas.height - 40);
+            }
+        }
+
+        // 遊戲主迴圈
+        function gameLoop() {
+            update();
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+
+        // 啟動遊戲
+        gameLoop();
+    </script>
+</body>
+</html>
