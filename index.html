@@ -2,7 +2,7 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>荒野冒險：魔物覺醒與動態技能版</title>
+    <title>荒野冒險：英雄雙技能與被動覺醒版</title>
     <style>
         body {
             background-color: #1e1e1e;
@@ -54,16 +54,21 @@
         
         #hud {
             display: flex;
-            justify-content: space-between;
-            align-items: center;
+            flex-direction: column;
             width: 640px;
             margin-bottom: 10px;
-            font-size: 14px;
-            font-weight: bold;
             background: #252525;
-            padding: 10px 14px;
+            padding: 12px;
             border-radius: 4px;
             border-bottom: 2px solid #444;
+            gap: 6px;
+        }
+        .hud-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 14px;
+            font-weight: bold;
         }
         .hud-section {
             display: flex;
@@ -73,7 +78,7 @@
         #shop-panel {
             background: #2a2a2a;
             width: 250px;
-            max-height: 520px;
+            max-height: 540px;
             overflow-y: auto;
             padding: 15px;
             border-radius: 6px;
@@ -135,27 +140,31 @@
 </head>
 <body>
 
-    <!-- 開局職業選擇 -->
     <div id="ui-container">
         <h2>選擇你的冒險者職業</h2>
-        <p>⚠️ 警告：魔物已全面覺醒血脈天賦！地圖越深，基礎數值加成越高！</p>
-        <button class="btn" onclick="initGame('COMMANDER')">戰術指揮官 (高血量)</button>
-        <button class="btn" onclick="initGame('BOUNTY_HUNTER')">賞金獵人 (速度快/雙倍純金)</button>
-        <button class="btn" onclick="initGame('ELEMENTALIST')">元素使者 (無視沼澤減速)</button>
+        <p>💡 每位英雄現在擁有專屬的【被動天賦】與【雙主動技能】系統！</p>
+        <button class="btn" onclick="initGame('COMMANDER')">戰術指揮官 (防禦/全體轟炸/秒回血)</button>
+        <button class="btn" onclick="initGame('BOUNTY_HUNTER')">賞金獵人 (速度/閃現突襲/雙倍純金)</button>
+        <button class="btn" onclick="initGame('ELEMENTALIST')">元素使者 (全體爆裂/全體凍結/免疫地形)</button>
     </div>
 
-    <!-- 遊戲主畫面 -->
     <div id="game-wrapper">
         <div id="hud">
-            <div class="hud-section">
-                <span id="hud-map" style="color: #3498db;">區域: </span>
-                <span id="hud-level" style="color: #9b5de5;">等級: 1 (0%)</span>
-                <span id="hud-skill" style="color: #f1c40f;">技能: [Space] 準備就緒</span>
+            <div class="hud-row">
+                <div class="hud-section">
+                    <span id="hud-map" style="color: #3498db;">區域: </span>
+                    <span id="hud-level" style="color: #9b5de5;">等級: 1</span>
+                </div>
+                <div class="hud-section">
+                    <span id="hud-hp" style="color: #e74c3c;">血量: </span>
+                    <span id="hud-stats" style="color: #2ecc71;">⚔️ 2.0  🛡️ 0.0</span>
+                    <span id="hud-gold" style="color: #f1c40f;">金幣: 0</span>
+                </div>
             </div>
-            <div class="hud-section">
-                <span id="hud-hp" style="color: #e74c3c;">血量: </span>
-                <span id="hud-stats" style="color: #2ecc71;">⚔️ 2.0  🛡️ 0.0</span>
-                <span id="hud-gold" style="color: #f1c40f;">金幣: 0</span>
+            <div class="hud-row" style="border-top: 1px solid #333; padding-top: 6px;">
+                <span id="hud-skill1" style="color: #f1c40f;">[Space] 招式一: 準備就緒</span>
+                <span id="hud-skill2" style="color: #e67e22;">[Q] 招式二: 準備就緒</span>
+                <span id="hud-passive" style="color: #1abc9c; font-size: 12px;">被動: 載入中</span>
             </div>
         </div>
         
@@ -163,11 +172,10 @@
             <div>
                 <canvas id="gameCanvas"></canvas>
                 <p style="color: #ffaa00; font-size: 13px; margin-top: 8px; text-align: left; width: 640px;">
-                    ⚡ <b>魔物彈幕與天賦注意：</b> 遠離史萊姆毒潭、小心惡魔火球與巨龍的環形衝擊波（帶有強烈擊退力）！
+                    🎮 <b>操作提示：</b> 使用 <b>WASD</b> 或方向鍵移動，<b>[Space]</b> 施放技能一，<b>[Q]</b> 施放技能二！
                 </p>
             </div>
 
-            <!-- 右側：冒險者商店 -->
             <div id="shop-panel">
                 <h3>🛒 補給與品質裝備</h3>
                 <div class="shop-section-title">— 消耗品補給 —</div>
@@ -208,13 +216,13 @@ const TILE_SIZE = 32;
 let currentMapIndex = 0;
 let player = null;
 let enemies = [];
-let enemyProjectiles = []; // 存放惡魔火球
-let poisonPuddles = [];     // 存放史萊姆留下的毒素地帶
-let dragonShockwaves = [];   // 存放巨龍衝擊波特效
+let enemyProjectiles = []; 
+let poisonPuddles = [];     
+let dragonShockwaves = [];   
 let playerGold = 0;
 const pressedKeys = {};
 
-// --- 地形配色 ---
+// 地形
 const TERRAIN_TYPES = {
     0: { name: '平原', color: '#EAEAEA', speedModifier: 1.0, walkable: true },  
     1: { name: '沼澤', color: '#A0B094', speedModifier: 0.5, walkable: true },  
@@ -226,12 +234,11 @@ const TERRAIN_TYPES = {
 };
 
 const HERO_CLASSES = {
-    COMMANDER: { name: '戰術指揮官', maxHp: 200, baseSpeed: 2.5, ignoreTerrainSlow: false, wildKillMult: 1.0 },
-    BOUNTY_HUNTER: { name: '賞金獵人', maxHp: 100, baseSpeed: 3.5, ignoreTerrainSlow: false, wildKillMult: 2.0 },
-    ELEMENTALIST: { name: '元素使者', maxHp: 120, baseSpeed: 2.8, ignoreTerrainSlow: true, wildKillMult: 1.0 }
+    COMMANDER: { name: '戰術指揮官', maxHp: 200, baseSpeed: 2.5, ignoreTerrainSlow: false, wildKillMult: 1.0, passiveDesc: "戰地復甦 (每秒回1%血)" },
+    BOUNTY_HUNTER: { name: '賞金獵人', maxHp: 100, baseSpeed: 3.5, ignoreTerrainSlow: false, wildKillMult: 2.0, passiveDesc: "雙倍賞金 (金幣獲取翻倍)" },
+    ELEMENTALIST: { name: '元素使者', maxHp: 120, baseSpeed: 2.8, ignoreTerrainSlow: true, wildKillMult: 1.0, passiveDesc: "元素親和 (免疫減速與熔岩)" }
 };
 
-// 基礎魔物模板
 const WILD_ENEMY_TYPES = {
     SLIME:  { name: '沼澤史萊姆', maxHp: 70,   baseAtk: 0.3, color: '#4A7c59', baseSpeed: 1.1, nativeTerrain: 1, exp: 35,  gold: 15 },
     BAT:    { name: '吸血蝙蝠',   maxHp: 55,   baseAtk: 0.4, color: '#8e44ad', baseSpeed: 2.1, nativeTerrain: 0, exp: 45,  gold: 20 },
@@ -241,7 +248,6 @@ const WILD_ENEMY_TYPES = {
     DRAGON: { name: '深淵幼龍',   maxHp: 1400, baseAtk: 3.8, color: '#2c3e50', baseSpeed: 0.9, nativeTerrain: 2, exp: 900, gold: 380 }
 };
 
-// 地圖結構
 const GAME_MAPS = [
     {
         name: "Origin Oasis",
@@ -375,26 +381,82 @@ class Hero {
         this.baseAtk = 2.0;   
         this.equipAtk = 0.0;  
         this.equipDef = 0.0;  
-        this.skillCd = 0;          
-        this.skillActiveTimer = 0; 
+        
+        // 雙技能狀態管理
+        this.skill1Cd = 0;          
+        this.skill1ActiveTimer = 0; 
+        this.skill2Cd = 0;
+        this.skill2ActiveTimer = 0;
     }
 
-    useSkill() {
-        if (this.skillCd > 0) return; 
+    // [Space] 招式一
+    useSkill1() {
+        if (this.skill1Cd > 0) return; 
         if (this.classConfig.name === '戰術指揮官') {
-            this.skillActiveTimer = 180; this.skillCd = 720;
+            this.skill1ActiveTimer = 180; // 3秒無敵
+            this.skill1Cd = 600;
         } else if (this.classConfig.name === '賞金獵人') {
-            this.skillActiveTimer = 240; this.skillCd = 600;
+            this.skill1ActiveTimer = 240; // 4秒衝刺
+            this.skill1Cd = 540;
         } else if (this.classConfig.name === '元素使者') {
+            // 全屏爆裂
             enemies.forEach(enemy => { enemy.hp -= 80; });
-            for (let i = enemies.length - 1; i >= 0; i--) {
-                if (enemies[i].hp <= 0) {
-                    playerGold += Math.floor(WILD_ENEMY_TYPES[enemies[i].typeKey].gold * (1 + currentMapIndex * 0.3) * this.classConfig.wildKillMult);
-                    this.gainExp(WILD_ENEMY_TYPES[enemies[i].typeKey].exp);
-                    enemies.splice(i, 1);
-                }
+            this.checkEnemyDeaths();
+            this.skill1Cd = 420;          
+        }
+    }
+
+    // [Q] 招式二
+    useSkill2() {
+        if (this.skill2Cd > 0) return;
+        if (this.classConfig.name === '戰術指揮官') {
+            // 戰術轟炸：全地圖魔物受到 150 點高傷害
+            enemies.forEach(enemy => { enemy.hp -= 150; });
+            this.checkEnemyDeaths();
+            this.skill2Cd = 720; // 12秒CD
+        } else if (this.classConfig.name === '賞金獵人') {
+            // 暗影突襲：閃現位移並斬擊前方魔物
+            let dashDist = 80;
+            let moveX = 0, moveY = 0;
+            if (pressedKeys['w'] || pressedKeys['arrowup']) moveY = -1;
+            if (pressedKeys['s'] || pressedKeys['arrowdown']) moveY = 1;
+            if (pressedKeys['a'] || pressedKeys['arrowleft']) moveX = -1;
+            if (pressedKeys['d'] || pressedKeys['arrowright']) moveX = 1;
+            
+            if (moveX === 0 && moveY === 0) moveY = -1; // 預設朝上閃現
+            
+            let nextX = this.x + moveX * dashDist;
+            let nextY = this.y + moveY * dashDist;
+            let nGridX = Math.floor(nextX / TILE_SIZE);
+            let nGridY = Math.floor(nextY / TILE_SIZE);
+            let nextTerrain = GAME_MAPS[currentMapIndex].grid[nGridY]?.[nGridX];
+            
+            if (nextTerrain !== undefined && TERRAIN_TYPES[nextTerrain].walkable) {
+                this.x = nextX; this.y = nextY;
             }
-            this.skillCd = 480;          
+
+            // 突襲震盪：對閃現後周圍的魔物造成 200 點爆發傷害
+            enemies.forEach(enemy => {
+                let dx = enemy.x - this.x; let dy = enemy.y - this.y;
+                if (Math.sqrt(dx*dx + dy*dy) < 60) enemy.hp -= 200;
+            });
+            this.checkEnemyDeaths();
+            this.skill2Cd = 480; // 8秒CD
+        } else if (this.classConfig.name === '元素使者') {
+            // 冰封禁制：凍結全場 3 秒
+            this.skill2ActiveTimer = 180;
+            this.skill2Cd = 660; // 11秒CD
+        }
+    }
+
+    checkEnemyDeaths() {
+        for (let i = enemies.length - 1; i >= 0; i--) {
+            if (enemies[i].hp <= 0) {
+                let baseGold = WILD_ENEMY_TYPES[enemies[i].typeKey].gold;
+                playerGold += Math.floor(baseGold * (1 + currentMapIndex * 0.3) * this.classConfig.wildKillMult);
+                this.gainExp(WILD_ENEMY_TYPES[enemies[i].typeKey].exp);
+                enemies.splice(i, 1);
+            }
         }
     }
 
@@ -416,11 +478,19 @@ class Hero {
         let gridY = Math.floor(this.y / TILE_SIZE);
         let currentTerrain = currentMap.grid[gridY]?.[gridX] || 0;
 
+        // 【被動技能天賦融入】
+        // 1. 戰術指揮官：戰地復甦 (每幀微量回血，約每秒 1% 最大血量)
+        if (this.classConfig.name === '戰術指揮官') {
+            this.hp = Math.min(this.maxHp, this.hp + (this.maxHp * 0.01 / 60));
+        }
+
         let speedModifier = TERRAIN_TYPES[currentTerrain].speedModifier;
+        // 3. 元素使者：元素親和 (免疫減速)
         if (currentTerrain === 1 && this.classConfig.ignoreTerrainSlow) speedModifier = 1.0; 
         let currentSpeed = this.baseSpeed * speedModifier;
 
-        if (this.classConfig.name === '賞金獵人' && this.skillActiveTimer > 0) currentSpeed += 2.0;
+        // 賞金獵人主動一加速
+        if (this.classConfig.name === '賞金獵人' && this.skill1ActiveTimer > 0) currentSpeed += 2.0;
 
         let nextX = this.x; let nextY = this.y;
         if (pressedKeys['w'] || pressedKeys['arrowup'])    nextY -= currentSpeed;
@@ -436,13 +506,17 @@ class Hero {
             this.x = nextX; this.y = nextY;
         }
 
+        // 熔岩地形扣血
         if (currentTerrain === 5) {
-            if (!(this.classConfig.name === '戰術指揮官' && this.skillActiveTimer > 0)) {
+            // 元素使者免疫熔岩，指揮官無敵時也免疫
+            let isImmune = this.classConfig.name === '元素使者' || (this.classConfig.name === '戰術指揮官' && this.skill1ActiveTimer > 0);
+            if (!isImmune) {
                 this.hp -= 0.2; 
                 if (this.hp <= 0) { alert("在熔岩中燃燒殆盡..."); window.location.reload(); }
             }
         }
 
+        // 傳送點
         if (currentTerrain === 4) {
             let portalKey = `${gridX},${gridY}`;
             let portalTrigger = currentMap.portals[portalKey];
@@ -456,12 +530,15 @@ class Hero {
             }
         }
 
-        if (this.skillCd > 0) this.skillCd--;
-        if (this.skillActiveTimer > 0) this.skillActiveTimer--;
+        // 技能計時扣減
+        if (this.skill1Cd > 0) this.skill1Cd--;
+        if (this.skill1ActiveTimer > 0) this.skill1ActiveTimer--;
+        if (this.skill2Cd > 0) this.skill2Cd--;
+        if (this.skill2ActiveTimer > 0) this.skill2ActiveTimer--;
     }
 
     draw() {
-        if (this.skillActiveTimer > 0) {
+        if (this.skill1ActiveTimer > 0) {
             ctx.strokeStyle = this.classConfig.name === '戰術指揮官' ? '#f1c40f' : '#e67e22';
             ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(this.x, this.y, 15, 0, Math.PI * 2); ctx.stroke();
         }
@@ -471,7 +548,6 @@ class Hero {
     }
 }
 
-// --- 具有動態數值加成與專屬 AI 技能的魔物類別 ---
 class WildEnemy {
     constructor(gridX, gridY, typeKey) {
         const config = WILD_ENEMY_TYPES[typeKey];
@@ -483,7 +559,6 @@ class WildEnemy {
         this.baseSpeed = config.baseSpeed;
         this.nativeTerrain = config.nativeTerrain;
 
-        // 【核心公式變更】：數值根據目前地圖深度逐漸變強
         let mapScale = currentMapIndex; 
         this.maxHp = Math.floor(config.maxHp * (1 + mapScale * 0.5));
         this.hp = this.maxHp;
@@ -493,10 +568,9 @@ class WildEnemy {
         this.targetX = this.x; this.targetY = this.y;
         this.setNewWanderTarget();
 
-        // 技能內部計時器
         this.skillTimer = 0;
-        this.isShielded = false; // 岩石防禦開關
-        this.isBerserk = false;  // 獸人半血狂暴
+        this.isShielded = false; 
+        this.isBerserk = false;  
     }
 
     setNewWanderTarget() {
@@ -507,6 +581,11 @@ class WildEnemy {
     }
 
     update(mapGrid, hero) {
+        // 【核心元素控場檢查】：如果被元素使者的冰封禁制凍結，直接跳過移動
+        if (hero.classConfig.name === '元素使者' && hero.skill2ActiveTimer > 0) {
+            return; 
+        }
+
         let gridX = Math.floor(this.x / TILE_SIZE);
         let gridY = Math.floor(this.y / TILE_SIZE);
         let currentTerrain = mapGrid[gridY]?.[gridX];
@@ -514,33 +593,23 @@ class WildEnemy {
         let speedModifier = 1.0;
         if (currentTerrain === 1) speedModifier = 0.5;
 
-        // 【技能機制 AI 融入】
         this.skillTimer++;
 
-        // 1. 史萊姆黏液地帶
         if (this.typeKey === 'SLIME' && this.skillTimer % 50 === 0) {
             poisonPuddles.push({ x: this.x, y: this.y, duration: 250 });
         }
-
-        // 2. 岩石護盾機制
         if (this.typeKey === 'GOLEM') {
-            let cycle = this.skillTimer % 300; // 5秒一輪
-            this.isShielded = (cycle > 180);   // 後2秒開啟護盾
+            let cycle = this.skillTimer % 300; 
+            this.isShielded = (cycle > 180);   
         }
-
-        // 3. 獸人半血狂暴
         if (this.typeKey === 'ORC' && this.hp < this.maxHp * 0.5) {
             this.isBerserk = true;
             speedModifier *= 1.6;
         }
-
-        // 4. 烈焰惡魔發射遠程火球
         if (this.typeKey === 'DEMON' && this.skillTimer % 150 === 0) {
             let angle = Math.atan2(hero.y - this.y, hero.x - this.x);
             enemyProjectiles.push({ x: this.x, y: this.y, vx: Math.cos(angle) * 3, vy: Math.sin(angle) * 3, damage: this.baseAtk * 1.2 });
         }
-
-        // 5. 深淵幼龍 Boss 環形衝擊波
         if (this.typeKey === 'DRAGON' && this.skillTimer % 240 === 0) {
             dragonShockwaves.push({ x: this.x, y: this.y, radius: 10, maxRadius: 130, damage: this.baseAtk * 1.5 });
         }
@@ -573,12 +642,10 @@ class WildEnemy {
         ctx.arc(this.x, this.y, radius, 0, Math.PI * 2);
         ctx.fill();
 
-        // 繪製岩石生靈護盾特效
         if (this.isShielded) {
             ctx.strokeStyle = '#52b788'; ctx.lineWidth = 3;
             ctx.beginPath(); ctx.arc(this.x, this.y, radius + 5, 0, Math.PI * 2); ctx.stroke();
         }
-        // 繪製狂暴紅光
         if (this.isBerserk) {
             ctx.strokeStyle = '#ff0055'; ctx.lineWidth = 2;
             ctx.beginPath(); ctx.arc(this.x, this.y, radius + 3, 0, Math.PI * 2); ctx.stroke();
@@ -630,7 +697,10 @@ function initGame(classKey) {
 
     window.addEventListener('keydown', e => {
         pressedKeys[e.key.toLowerCase()] = true;
-        if (e.key === ' ' || e.code === 'Space') { e.preventDefault(); if (player) player.useSkill(); }
+        
+        // 綁定雙技能按鍵
+        if (e.key === ' ' || e.code === 'Space') { e.preventDefault(); if (player) player.useSkill1(); }
+        if (e.key === 'q' || e.code === 'KeyQ') { if (player) player.useSkill2(); }
     });
     window.addEventListener('keyup', e => pressedKeys[e.key.toLowerCase()] = false);
     requestAnimationFrame(gameLoop);
@@ -640,7 +710,7 @@ function gameLoop() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     let currentMap = GAME_MAPS[currentMapIndex];
 
-    // 繪製地圖
+    // 地圖地型渲染
     for (let r = 0; r < currentMap.grid.length; r++) {
         for (let c = 0; c < currentMap.grid[r].length; c++) {
             ctx.fillStyle = TERRAIN_TYPES[currentMap.grid[r][c]].color;
@@ -648,7 +718,7 @@ function gameLoop() {
         }
     }
 
-    // 更新與繪製史萊姆毒素液潭
+    // 史萊姆毒素
     ctx.fillStyle = "rgba(46, 204, 113, 0.4)";
     for (let i = poisonPuddles.length - 1; i >= 0; i--) {
         let puddle = poisonPuddles[i];
@@ -656,15 +726,15 @@ function gameLoop() {
         
         let pDx = player.x - puddle.x; let pDy = player.y - puddle.y;
         if (Math.sqrt(pDx*pDx + pDy*pDy) < 18) {
-            if (!(player.classConfig.name === '戰術指揮官' && player.skillActiveTimer > 0)) {
-                player.hp -= 0.15; // 毒素真實扣血
+            if (!(player.classConfig.name === '戰術指揮官' && player.skill1ActiveTimer > 0)) {
+                player.hp -= 0.15; 
             }
         }
         puddle.duration--;
         if (puddle.duration <= 0) poisonPuddles.splice(i, 1);
     }
 
-    // 更新與繪製惡魔遠程投射火球
+    // 惡魔火球
     for (let i = enemyProjectiles.length - 1; i >= 0; i--) {
         let proj = enemyProjectiles[i];
         proj.x += proj.vx; proj.y += proj.vy;
@@ -674,7 +744,7 @@ function gameLoop() {
         let hDx = player.x - proj.x; let hDy = player.y - proj.y;
         if (Math.sqrt(hDx*hDx + hDy*hDy) < 12) {
             let dmg = Math.max(0.2, proj.damage - player.equipDef);
-            if (player.classConfig.name === '戰術指揮官' && player.skillActiveTimer > 0) dmg = 0;
+            if (player.classConfig.name === '戰術指揮官' && player.skill1ActiveTimer > 0) dmg = 0;
             player.hp -= dmg;
             enemyProjectiles.splice(i, 1);
             continue;
@@ -684,7 +754,7 @@ function gameLoop() {
         }
     }
 
-    // 更新與繪製巨龍 Boss 毀滅衝擊波
+    // 幼龍衝擊波
     ctx.lineWidth = 2;
     for (let i = dragonShockwaves.length - 1; i >= 0; i--) {
         let wave = dragonShockwaves[i];
@@ -695,24 +765,27 @@ function gameLoop() {
         let wDx = player.x - wave.x; let wDy = player.y - wave.y;
         let wDist = Math.sqrt(wDx*wDx + wDy*wDy);
         
-        // 剛好被擴散圈邊緣掃到
         if (Math.abs(wDist - wave.radius) < 4) {
             let dmg = Math.max(0.5, wave.damage - player.equipDef);
-            if (player.classConfig.name === '戰術指揮官' && player.skillActiveTimer > 0) dmg = 0;
+            if (player.classConfig.name === '戰術指揮官' && player.skill1ActiveTimer > 0) dmg = 0;
             player.hp -= dmg;
             
-            // 強烈擊退效果
             let pushAngle = Math.atan2(wDy, wDx);
             player.x += Math.cos(pushAngle) * 25;
             player.y += Math.sin(pushAngle) * 25;
         }
-
         if (wave.radius >= wave.maxRadius) dragonShockwaves.splice(i, 1);
+    }
+
+    // 全體結冰環境特效（元素使者 Q 冰封時）
+    if (player.classConfig.name === '元素使者' && player.skill2ActiveTimer > 0) {
+        ctx.fillStyle = "rgba(173, 216, 230, 0.15)";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
     }
 
     player.update(); player.draw();
 
-    // 近戰魔物遭遇碰撞機制
+    // 魔物遭遇碰觸計算
     enemies.forEach((enemy, index) => {
         enemy.update(currentMap.grid, player); enemy.draw();
 
@@ -721,24 +794,25 @@ function gameLoop() {
         let hitBoxSize = enemy.typeKey === 'DRAGON' ? 22 : 16;
 
         if (dist < hitBoxSize) {
-            // 魔物造成的傷害
             let finalDamageTaken = Math.max(0.1, enemy.baseAtk - player.equipDef);
-            if (player.classConfig.name === '戰術指揮官' && player.skillActiveTimer > 0) finalDamageTaken = 0;
+            if (player.classConfig.name === '戰術指揮官' && player.skill1ActiveTimer > 0) finalDamageTaken = 0;
             player.hp -= finalDamageTaken;
 
-            // 蝙蝠專屬技能：吸血轉換生命
             if (enemy.typeKey === 'BAT' && finalDamageTaken > 0) {
                 enemy.hp = Math.min(enemy.maxHp, enemy.hp + finalDamageTaken * 1.0);
             }
 
-            // 玩家反擊傷害（計算岩石生靈護盾減傷）
             let finalDamageDealt = player.baseAtk + player.equipAtk;
-            if (enemy.isShielded) finalDamageDealt *= 0.3; // 盾牌免疫70%傷害
+            if (enemy.isShielded) finalDamageDealt *= 0.3; 
             enemy.hp -= finalDamageDealt;
 
             if (enemy.hp <= 0) {
-                let goldGained = Math.floor(WILD_ENEMY_TYPES[enemy.typeKey].gold * (1 + currentMapIndex * 0.3) * player.classConfig.wildKillMult);
-                if (player.classConfig.name === '賞金獵人' && player.skillActiveTimer > 0) goldGained += 20;
+                let baseGold = WILD_ENEMY_TYPES[enemy.typeKey].gold;
+                let goldGained = Math.floor(baseGold * (1 + currentMapIndex * 0.3) * player.classConfig.wildKillMult);
+                
+                // 賞金獵人開 Space 技能期間，擊殺有額外純金獎勵
+                if (player.classConfig.name === '賞金獵人' && player.skill1ActiveTimer > 0) goldGained += 20;
+                
                 playerGold += goldGained;
                 player.gainExp(WILD_ENEMY_TYPES[enemy.typeKey].exp);
                 enemies.splice(index, 1);
@@ -751,19 +825,29 @@ function gameLoop() {
         }
     });
 
-    // 介面資料同步
+    // 雙技能 HUD 同步同步更新
     let totalAtk = (player.baseAtk + player.equipAtk).toFixed(1);
     let expPercent = Math.floor((player.exp / player.maxExp) * 100);
-    let skillText = "準備就緒";
-    if (player.skillActiveTimer > 0) skillText = `🔥 啟動中 (${Math.ceil(player.skillActiveTimer/60)}s)`;
-    else if (player.skillCd > 0) skillText = `⏳ CD: ${(player.skillCd / 60).toFixed(1)}s`;
+    
+    // Skill 1 顯示
+    let s1Text = "準備就緒";
+    if (player.skill1ActiveTimer > 0) s1Text = `🔥 爆發中 (${Math.ceil(player.skill1ActiveTimer/60)}s)`;
+    else if (player.skill1Cd > 0) s1Text = `⏳ CD: ${(player.skill1Cd / 60).toFixed(1)}s`;
+
+    // Skill 2 顯示
+    let s2Text = "準備就緒";
+    if (player.skill2ActiveTimer > 0) s2Text = `❄️ 凍結中 (${Math.ceil(player.skill2ActiveTimer/60)}s)`;
+    else if (player.skill2Cd > 0) s2Text = `⏳ CD: ${(player.skill2Cd / 60).toFixed(1)}s`;
 
     document.getElementById('hud-map').innerText = `區域: ${currentMap.name} (難度+${(currentMapIndex*40)}%)`;
-    document.getElementById('hud-level').innerText = `等級: ${player.level} (${expPercent}%)`;
-    document.getElementById('hud-skill').innerText = `技能: [Space] ${skillText}`;
+    document.getElementById('hud-level').innerText = `等級: Lv.${player.level} (${expPercent}%)`;
     document.getElementById('hud-hp').innerText = `血量: ${Math.max(0, Math.floor(player.hp))}/${player.maxHp}`;
     document.getElementById('hud-stats').innerText = `⚔️ ${totalAtk}  🛡️ ${player.equipDef.toFixed(2)}`;
     document.getElementById('hud-gold').innerText = `金幣: ${playerGold}`;
+    
+    document.getElementById('hud-skill1').innerText = `[Space] 技能一: ${s1Text}`;
+    document.getElementById('hud-skill2').innerText = `[Q] 技能二: ${s2Text}`;
+    document.getElementById('hud-passive').innerText = `🧬 被動: ${player.classConfig.passiveDesc}`;
 
     requestAnimationFrame(gameLoop);
 }
