@@ -2,7 +2,7 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>荒野冒險：魔物崛起與難度階梯版</title>
+    <title>荒野冒險：魔物覺醒與動態技能版</title>
     <style>
         body {
             background-color: #1e1e1e;
@@ -138,7 +138,7 @@
     <!-- 開局職業選擇 -->
     <div id="ui-container">
         <h2>選擇你的冒險者職業</h2>
-        <p>⚠️ 警告：野外魔物已大幅繁衍，深處地圖盤踞著極度危險的古老巨龍！</p>
+        <p>⚠️ 警告：魔物已全面覺醒血脈天賦！地圖越深，基礎數值加成越高！</p>
         <button class="btn" onclick="initGame('COMMANDER')">戰術指揮官 (高血量)</button>
         <button class="btn" onclick="initGame('BOUNTY_HUNTER')">賞金獵人 (速度快/雙倍純金)</button>
         <button class="btn" onclick="initGame('ELEMENTALIST')">元素使者 (無視沼澤減速)</button>
@@ -146,7 +146,6 @@
 
     <!-- 遊戲主畫面 -->
     <div id="game-wrapper">
-        <!-- 頂部資訊列 -->
         <div id="hud">
             <div class="hud-section">
                 <span id="hud-map" style="color: #3498db;">區域: </span>
@@ -161,57 +160,41 @@
         </div>
         
         <div class="game-container">
-            <!-- 左側：遊戲地圖 -->
             <div>
                 <canvas id="gameCanvas"></canvas>
-                <p style="color: #ccc; font-size: 13px; margin-top: 8px; text-align: left;">
-                    🔥 <b>魔物難度提示：</b> 史萊姆/蝙蝠(極弱) ➔ 岩石怪/獸人(中等) ➔ 惡魔(強大) ➔ 幼龍(毀滅級Boss)。
+                <p style="color: #ffaa00; font-size: 13px; margin-top: 8px; text-align: left; width: 640px;">
+                    ⚡ <b>魔物彈幕與天賦注意：</b> 遠離史萊姆毒潭、小心惡魔火球與巨龍的環形衝擊波（帶有強烈擊退力）！
                 </p>
             </div>
 
             <!-- 右側：冒險者商店 -->
             <div id="shop-panel">
                 <h3>🛒 補給與品質裝備</h3>
-                
                 <div class="shop-section-title">— 消耗品補給 —</div>
                 <div class="shop-item">
                     <strong>🧪 治癒藥水</strong>
                     <span>恢復 50 點生命值</span>
                     <button class="shop-btn" onclick="buyShopItem('POTION')">20 金幣</button>
                 </div>
-
-                <div class="shop-section-title">— 武器店 (不同品質) —</div>
+                <div class="shop-section-title">— 武器店 —</div>
                 <div class="shop-item">
-                    <strong class="q-common">[普通] 銅製短劍</strong>
-                    <span>武器攻擊力 +1.0</span>
-                    <button id="btn-w1" class="shop-btn" onclick="buyShopItem('W_COMMON')">40 金幣</button>
+                    <strong class="q-common">[普通] 銅製短劍</strong><span>武器攻擊力 +1.0</span><button id="btn-w1" class="shop-btn" onclick="buyShopItem('W_COMMON')">40 金幣</button>
                 </div>
                 <div class="shop-item">
-                    <strong class="q-rare">[精良] 精鋼長劍</strong>
-                    <span>武器攻擊力 +2.5</span>
-                    <button id="btn-w2" class="shop-btn" onclick="buyShopItem('W_RARE')">100 金幣</button>
+                    <strong class="q-rare">[精良] 精鋼長劍</strong><span>武器攻擊力 +2.5</span><button id="btn-w2" class="shop-btn" onclick="buyShopItem('W_RARE')">100 金幣</button>
                 </div>
                 <div class="shop-item">
-                    <strong class="q-legendary">[傳奇] 滅世神刃</strong>
-                    <span>武器攻擊力 +7.0</span>
-                    <button id="btn-w3" class="shop-btn" onclick="buyShopItem('W_LEGEND')">250 金幣</button>
+                    <strong class="q-legendary">[傳奇] 滅世神刃</strong><span>武器攻擊力 +7.0</span><button id="btn-w3" class="shop-btn" onclick="buyShopItem('W_LEGEND')">250 金幣</button>
                 </div>
-
-                <div class="shop-section-title">— 防具店 (不同品質) —</div>
+                <div class="shop-section-title">— 防具店 —</div>
                 <div class="shop-item">
-                    <strong class="q-common">[普通] 破舊皮甲</strong>
-                    <span>戰鬥傷害減免 0.04</span>
-                    <button id="btn-a1" class="shop-btn" onclick="buyShopItem('A_COMMON')">40 金幣</button>
+                    <strong class="q-common">[普通] 破舊皮甲</strong><span>戰鬥傷害減免 0.04</span><button id="btn-a1" class="shop-btn" onclick="buyShopItem('A_COMMON')">40 金幣</button>
                 </div>
                 <div class="shop-item">
-                    <strong class="q-rare">[精良] 騎士重鎧</strong>
-                    <span>戰鬥傷害減免 0.12</span>
-                    <button id="btn-a2" class="shop-btn" onclick="buyShopItem('A_RARE')">110 金幣</button>
+                    <strong class="q-rare">[精良] 騎士重鎧</strong><span>戰鬥傷害減免 0.12</span><button id="btn-a2" class="shop-btn" onclick="buyShopItem('A_RARE')">110 金幣</button>
                 </div>
                 <div class="shop-item">
-                    <strong class="q-legendary">[傳奇] 守護神盾</strong>
-                    <span>戰鬥傷害減免 0.30</span>
-                    <button id="btn-a3" class="shop-btn" onclick="buyShopItem('A_LEGEND')">260 金幣</button>
+                    <strong class="q-legendary">[傳奇] 守護神盾</strong><span>戰鬥傷害減免 0.30</span><button id="btn-a3" class="shop-btn" onclick="buyShopItem('A_LEGEND')">260 金幣</button>
                 </div>
             </div>
         </div>
@@ -225,6 +208,9 @@ const TILE_SIZE = 32;
 let currentMapIndex = 0;
 let player = null;
 let enemies = [];
+let enemyProjectiles = []; // 存放惡魔火球
+let poisonPuddles = [];     // 存放史萊姆留下的毒素地帶
+let dragonShockwaves = [];   // 存放巨龍衝擊波特效
 let playerGold = 0;
 const pressedKeys = {};
 
@@ -239,26 +225,24 @@ const TERRAIN_TYPES = {
     6: { name: '沙漠', color: '#EDC9AF', speedModifier: 0.7, walkable: true }  
 };
 
-// --- 職業資料庫 ---
 const HERO_CLASSES = {
     COMMANDER: { name: '戰術指揮官', maxHp: 200, baseSpeed: 2.5, ignoreTerrainSlow: false, wildKillMult: 1.0 },
     BOUNTY_HUNTER: { name: '賞金獵人', maxHp: 100, baseSpeed: 3.5, ignoreTerrainSlow: false, wildKillMult: 2.0 },
     ELEMENTALIST: { name: '元素使者', maxHp: 120, baseSpeed: 2.8, ignoreTerrainSlow: true, wildKillMult: 1.0 }
 };
 
-// --- 6大漸進式魔物資料庫 (新增攻擊力與金幣倍率) ---
+// 基礎魔物模板
 const WILD_ENEMY_TYPES = {
-    SLIME:  { name: '沼澤史萊姆', maxHp: 80,   baseAtk: 0.3, color: '#4A7c59', baseSpeed: 1.2, nativeTerrain: 1, type: 'HEAL',       exp: 30,  gold: 15 },
-    BAT:    { name: '吸血蝙蝠',   maxHp: 60,   baseAtk: 0.4, color: '#8e44ad', baseSpeed: 2.2, nativeTerrain: 0, type: 'WANDER',     exp: 45,  gold: 20 },
-    GOLEM:  { name: '岩石生靈',   maxHp: 220,  baseAtk: 0.8, color: '#333333', baseSpeed: 0.8, nativeTerrain: 0, type: 'SPEED_BUFF', exp: 80,  gold: 35 },
-    ORC:    { name: '荒野獸人',   maxHp: 380,  baseAtk: 1.4, color: '#d35400', baseSpeed: 1.3, nativeTerrain: 6, type: 'WANDER',     exp: 150, gold: 60 },
-    DEMON:  { name: '烈焰惡魔',   maxHp: 650,  baseAtk: 2.2, color: '#c0392b', baseSpeed: 1.6, nativeTerrain: 5, type: 'SPEED_BUFF', exp: 300, gold: 120 },
-    DRAGON: { name: '深淵幼龍',   maxHp: 1500, baseAtk: 4.0, color: '#2c3e50', baseSpeed: 1.0, nativeTerrain: 2, type: 'BOSS',       exp: 800, gold: 350 }
+    SLIME:  { name: '沼澤史萊姆', maxHp: 70,   baseAtk: 0.3, color: '#4A7c59', baseSpeed: 1.1, nativeTerrain: 1, exp: 35,  gold: 15 },
+    BAT:    { name: '吸血蝙蝠',   maxHp: 55,   baseAtk: 0.4, color: '#8e44ad', baseSpeed: 2.1, nativeTerrain: 0, exp: 45,  gold: 20 },
+    GOLEM:  { name: '岩石生靈',   maxHp: 200,  baseAtk: 0.7, color: '#3c3c3c', baseSpeed: 0.7, nativeTerrain: 0, exp: 80,  gold: 35 },
+    ORC:    { name: '荒野獸人',   maxHp: 350,  baseAtk: 1.3, color: '#d35400', baseSpeed: 1.2, nativeTerrain: 6, exp: 160, gold: 60 },
+    DEMON:  { name: '烈焰惡魔',   maxHp: 600,  baseAtk: 2.0, color: '#c0392b', baseSpeed: 1.5, nativeTerrain: 5, exp: 320, gold: 120 },
+    DRAGON: { name: '深淵幼龍',   maxHp: 1400, baseAtk: 3.8, color: '#2c3e50', baseSpeed: 0.9, nativeTerrain: 2, exp: 900, gold: 380 }
 };
 
-// --- 四張地圖資料 (大幅增加了魔物衍生生成點) ---
+// 地圖結構
 const GAME_MAPS = [
-    // 【地圖 0：始源綠洲】 - 5隻怪 (史萊姆 + 蝙蝠 + 基礎石靈)
     {
         name: "Origin Oasis",
         grid: [
@@ -285,7 +269,6 @@ const GAME_MAPS = [
             { x: 15, y: 2, type: 'BAT' }
         ]
     },
-    // 【地圖 1：低調平原】 - 6隻怪 (引進強大獸人)
     {
         name: "Whispering Plains",
         grid: [
@@ -315,7 +298,6 @@ const GAME_MAPS = [
             { x: 6, y: 12, type: 'ORC' },   { x: 17, y: 2, type: 'BAT' }
         ]
     },
-    // 【地圖 2：迷霧與熔岩沼澤】 - 7隻怪 (引進劇毒惡魔)
     {
         name: "Muted Swamps",
         grid: [
@@ -346,7 +328,6 @@ const GAME_MAPS = [
             { x: 16, y: 6, type: 'BAT' }
         ]
     },
-    // 【地圖 3：烈焰巨石迷宮】 - 8隻怪 (惡魔大本營 + 終極守門巨龍)
     {
         name: "Rocky Crags",
         grid: [
@@ -371,7 +352,7 @@ const GAME_MAPS = [
             "7,7": { targetMap: 0, spawnGridX: 2, spawnGridY: 2 }
         },
         enemySpawns: [
-            { x: 14, y: 7, type: 'DRAGON' }, // 終極守門幼龍 Boss 
+            { x: 14, y: 7, type: 'DRAGON' }, 
             { x: 2, y: 13, type: 'DEMON' },  { x: 3, y: 2, type: 'DEMON' },
             { x: 10, y: 11, type: 'ORC' },   { x: 13, y: 9, type: 'ORC' },
             { x: 18, y: 5, type: 'BAT' },    { x: 11, y: 2, type: 'BAT' },
@@ -380,49 +361,35 @@ const GAME_MAPS = [
     }
 ];
 
-// --- 玩家英雄類別 ---
 class Hero {
     constructor(gridX, gridY, classInfo) {
         this.x = gridX * TILE_SIZE + TILE_SIZE / 2;
         this.y = gridY * TILE_SIZE + TILE_SIZE / 2;
         this.classConfig = classInfo;
-        
         this.hp = classInfo.maxHp;
         this.maxHp = classInfo.maxHp;
         this.baseSpeed = classInfo.baseSpeed;
-
         this.level = 1;
         this.exp = 0;
         this.maxExp = 100;
-
         this.baseAtk = 2.0;   
         this.equipAtk = 0.0;  
         this.equipDef = 0.0;  
-
         this.skillCd = 0;          
         this.skillActiveTimer = 0; 
     }
 
     useSkill() {
         if (this.skillCd > 0) return; 
-
         if (this.classConfig.name === '戰術指揮官') {
-            this.skillActiveTimer = 180; 
-            this.skillCd = 720;          
-            console.log("絕對防禦！");
-        } 
-        else if (this.classConfig.name === '賞金獵人') {
-            this.skillActiveTimer = 240; 
-            this.skillCd = 600;          
-            console.log("賞金狂熱！");
-        } 
-        else if (this.classConfig.name === '元素使者') {
-            enemies.forEach(enemy => {
-                enemy.hp -= 60;
-            });
+            this.skillActiveTimer = 180; this.skillCd = 720;
+        } else if (this.classConfig.name === '賞金獵人') {
+            this.skillActiveTimer = 240; this.skillCd = 600;
+        } else if (this.classConfig.name === '元素使者') {
+            enemies.forEach(enemy => { enemy.hp -= 80; });
             for (let i = enemies.length - 1; i >= 0; i--) {
                 if (enemies[i].hp <= 0) {
-                    playerGold += WILD_ENEMY_TYPES[enemies[i].typeKey].gold * this.classConfig.wildKillMult;
+                    playerGold += Math.floor(WILD_ENEMY_TYPES[enemies[i].typeKey].gold * (1 + currentMapIndex * 0.3) * this.classConfig.wildKillMult);
                     this.gainExp(WILD_ENEMY_TYPES[enemies[i].typeKey].exp);
                     enemies.splice(i, 1);
                 }
@@ -439,7 +406,7 @@ class Hero {
             this.maxExp = this.level * 100; 
             this.maxHp += 25;       
             this.hp = this.maxHp;   
-            this.baseAtk += 0.6;    
+            this.baseAtk += 0.8;    
         }
     }
 
@@ -450,18 +417,12 @@ class Hero {
         let currentTerrain = currentMap.grid[gridY]?.[gridX] || 0;
 
         let speedModifier = TERRAIN_TYPES[currentTerrain].speedModifier;
-        if (currentTerrain === 1 && this.classConfig.ignoreTerrainSlow) {
-            speedModifier = 1.0; 
-        }
+        if (currentTerrain === 1 && this.classConfig.ignoreTerrainSlow) speedModifier = 1.0; 
         let currentSpeed = this.baseSpeed * speedModifier;
 
-        if (this.classConfig.name === '賞金獵人' && this.skillActiveTimer > 0) {
-            currentSpeed += 2.0;
-        }
+        if (this.classConfig.name === '賞金獵人' && this.skillActiveTimer > 0) currentSpeed += 2.0;
 
-        let nextX = this.x;
-        let nextY = this.y;
-
+        let nextX = this.x; let nextY = this.y;
         if (pressedKeys['w'] || pressedKeys['arrowup'])    nextY -= currentSpeed;
         if (pressedKeys['s'] || pressedKeys['arrowdown'])  nextY += currentSpeed;
         if (pressedKeys['a'] || pressedKeys['arrowleft'])  nextX -= currentSpeed;
@@ -472,17 +433,13 @@ class Hero {
         let nextTerrain = currentMap.grid[nextGridY]?.[nextGridX];
 
         if (nextTerrain !== undefined && TERRAIN_TYPES[nextTerrain].walkable) {
-            this.x = nextX;
-            this.y = nextY;
+            this.x = nextX; this.y = nextY;
         }
 
         if (currentTerrain === 5) {
             if (!(this.classConfig.name === '戰術指揮官' && this.skillActiveTimer > 0)) {
-                this.hp -= 0.15; 
-                if (this.hp <= 0) {
-                    alert("你被熔岩燒成了灰燼...遊戲結束！");
-                    window.location.reload();
-                }
+                this.hp -= 0.2; 
+                if (this.hp <= 0) { alert("在熔岩中燃燒殆盡..."); window.location.reload(); }
             }
         }
 
@@ -493,6 +450,7 @@ class Hero {
                 currentMapIndex = portalTrigger.targetMap;
                 this.x = portalTrigger.spawnGridX * TILE_SIZE + TILE_SIZE / 2;
                 this.y = portalTrigger.spawnGridY * TILE_SIZE + TILE_SIZE / 2;
+                enemyProjectiles = []; poisonPuddles = []; dragonShockwaves = [];
                 resizeCanvasForCurrentMap(); 
                 spawnEnemiesForMap();        
             }
@@ -505,53 +463,45 @@ class Hero {
     draw() {
         if (this.skillActiveTimer > 0) {
             ctx.strokeStyle = this.classConfig.name === '戰術指揮官' ? '#f1c40f' : '#e67e22';
-            ctx.lineWidth = 3;
-            ctx.beginPath();
-            ctx.arc(this.x, this.y, 15, 0, Math.PI * 2);
-            ctx.stroke();
+            ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(this.x, this.y, 15, 0, Math.PI * 2); ctx.stroke();
         }
-
-        ctx.fillStyle = '#3498db';
-        ctx.beginPath();
-        ctx.arc(this.x, this.y, 10, 0, Math.PI * 2);
-        ctx.fill();
-
-        ctx.fillStyle = '#c0392b';
-        ctx.fillRect(this.x - 12, this.y - 16, 24, 3);
-        ctx.fillStyle = '#2ecc71';
-        ctx.fillRect(this.x - 12, this.y - 16, 24 * (this.hp / this.maxHp), 3);
+        ctx.fillStyle = '#3498db'; ctx.beginPath(); ctx.arc(this.x, this.y, 10, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#c0392b'; ctx.fillRect(this.x - 12, this.y - 16, 24, 3);
+        ctx.fillStyle = '#2ecc71'; ctx.fillRect(this.x - 12, this.y - 16, 24 * (this.hp / this.maxHp), 3);
     }
 }
 
-// --- 野生怪物類別 ---
+// --- 具有動態數值加成與專屬 AI 技能的魔物類別 ---
 class WildEnemy {
     constructor(gridX, gridY, typeKey) {
         const config = WILD_ENEMY_TYPES[typeKey];
         this.typeKey = typeKey;
         this.spawnX = gridX * TILE_SIZE + TILE_SIZE / 2;
         this.spawnY = gridY * TILE_SIZE + TILE_SIZE / 2;
-        this.x = this.spawnX;
-        this.y = this.spawnY;
-        
-        this.name = config.name;
-        this.color = config.color;
-        this.maxHp = config.maxHp;
-        this.hp = config.maxHp;
+        this.x = this.spawnX; this.y = this.spawnY;
+        this.name = config.name; this.color = config.color;
         this.baseSpeed = config.baseSpeed;
-        this.baseAtk = config.baseAtk; // 注入怪物專屬傷害力
         this.nativeTerrain = config.nativeTerrain;
-        this.enemyType = config.type;
+
+        // 【核心公式變更】：數值根據目前地圖深度逐漸變強
+        let mapScale = currentMapIndex; 
+        this.maxHp = Math.floor(config.maxHp * (1 + mapScale * 0.5));
+        this.hp = this.maxHp;
+        this.baseAtk = config.baseAtk * (1 + mapScale * 0.4);
 
         this.state = 'WANDER';
-        this.wanderRadius = 70;
-        this.targetX = this.x;
-        this.targetY = this.y;
+        this.targetX = this.x; this.targetY = this.y;
         this.setNewWanderTarget();
+
+        // 技能內部計時器
+        this.skillTimer = 0;
+        this.isShielded = false; // 岩石防禦開關
+        this.isBerserk = false;  // 獸人半血狂暴
     }
 
     setNewWanderTarget() {
         let angle = Math.random() * Math.PI * 2;
-        let distance = Math.random() * this.wanderRadius;
+        let distance = Math.random() * 80;
         this.targetX = this.spawnX + Math.cos(angle) * distance;
         this.targetY = this.spawnY + Math.sin(angle) * distance;
     }
@@ -564,94 +514,97 @@ class WildEnemy {
         let speedModifier = 1.0;
         if (currentTerrain === 1) speedModifier = 0.5;
 
-        if (currentTerrain === this.nativeTerrain) {
-            if (this.enemyType === 'HEAL' && this.hp < this.maxHp) {
-                this.hp = Math.min(this.maxHp, this.hp + 0.1);
-            }
-            if (this.enemyType === 'SPEED_BUFF') {
-                speedModifier = 1.3;
-            }
+        // 【技能機制 AI 融入】
+        this.skillTimer++;
+
+        // 1. 史萊姆黏液地帶
+        if (this.typeKey === 'SLIME' && this.skillTimer % 50 === 0) {
+            poisonPuddles.push({ x: this.x, y: this.y, duration: 250 });
+        }
+
+        // 2. 岩石護盾機制
+        if (this.typeKey === 'GOLEM') {
+            let cycle = this.skillTimer % 300; // 5秒一輪
+            this.isShielded = (cycle > 180);   // 後2秒開啟護盾
+        }
+
+        // 3. 獸人半血狂暴
+        if (this.typeKey === 'ORC' && this.hp < this.maxHp * 0.5) {
+            this.isBerserk = true;
+            speedModifier *= 1.6;
+        }
+
+        // 4. 烈焰惡魔發射遠程火球
+        if (this.typeKey === 'DEMON' && this.skillTimer % 150 === 0) {
+            let angle = Math.atan2(hero.y - this.y, hero.x - this.x);
+            enemyProjectiles.push({ x: this.x, y: this.y, vx: Math.cos(angle) * 3, vy: Math.sin(angle) * 3, damage: this.baseAtk * 1.2 });
+        }
+
+        // 5. 深淵幼龍 Boss 環形衝擊波
+        if (this.typeKey === 'DRAGON' && this.skillTimer % 240 === 0) {
+            dragonShockwaves.push({ x: this.x, y: this.y, radius: 10, maxRadius: 130, damage: this.baseAtk * 1.5 });
         }
 
         let currentSpeed = this.baseSpeed * speedModifier;
-        let dxToHero = hero.x - this.x;
-        let dyToHero = hero.y - this.y;
+        let dxToHero = hero.x - this.x; let dyToHero = hero.y - this.y;
         let distToHero = Math.sqrt(dxToHero * dxToHero + dyToHero * dyToHero);
-
-        // 如果是 Boss 或者是瘋狂蝙蝠，追擊範圍變大
-        let chaseRange = (this.enemyType === 'BOSS' || this.typeKey === 'BAT') ? 140 : 80;
+        let chaseRange = (this.typeKey === 'DRAGON' || this.typeKey === 'BAT' || this.typeKey === 'DEMON') ? 160 : 90;
 
         if (distToHero < chaseRange) {
-            this.state = 'CHASE';
-            this.targetX = hero.x;
-            this.targetY = hero.y;
+            this.state = 'CHASE'; this.targetX = hero.x; this.targetY = hero.y;
         } else if (this.state === 'CHASE') {
-            this.state = 'WANDER';
-            this.setNewWanderTarget();
+            this.state = 'WANDER'; this.setNewWanderTarget();
         }
 
-        let tDx = this.targetX - this.x;
-        let tDy = this.targetY - this.y;
+        let tDx = this.targetX - this.x; let tDy = this.targetY - this.y;
         let tDist = Math.sqrt(tDx * tDx + tDy * tDy);
 
         if (tDist > 2) {
-            this.x += (tDx / tDist) * currentSpeed;
-            this.y += (tDy / tDist) * currentSpeed;
-        } else if (this.state === 'WANDER') {
-            if (Math.random() < 0.01) this.setNewWanderTarget();
+            this.x += (tDx / tDist) * currentSpeed; this.y += (tDy / tDist) * currentSpeed;
+        } else if (this.state === 'WANDER' && Math.random() < 0.01) {
+            this.setNewWanderTarget();
         }
     }
 
     draw() {
         ctx.fillStyle = this.color;
         ctx.beginPath();
-        // 根據強度縮放怪物大小，Boss 畫大隻一點
-        let radius = this.enemyType === 'BOSS' ? 14 : 8;
+        let radius = this.typeKey === 'DRAGON' ? 16 : (this.isBerserk ? 11 : 8);
         ctx.arc(this.x, this.y, radius, 0, Math.PI * 2);
         ctx.fill();
 
-        // 血條渲染
+        // 繪製岩石生靈護盾特效
+        if (this.isShielded) {
+            ctx.strokeStyle = '#52b788'; ctx.lineWidth = 3;
+            ctx.beginPath(); ctx.arc(this.x, this.y, radius + 5, 0, Math.PI * 2); ctx.stroke();
+        }
+        // 繪製狂暴紅光
+        if (this.isBerserk) {
+            ctx.strokeStyle = '#ff0055'; ctx.lineWidth = 2;
+            ctx.beginPath(); ctx.arc(this.x, this.y, radius + 3, 0, Math.PI * 2); ctx.stroke();
+        }
+
         let barW = radius * 2.4;
-        ctx.fillStyle = '#c0392b';
-        ctx.fillRect(this.x - barW/2, this.y - (radius + 4), barW, 2);
-        ctx.fillStyle = '#2ecc71';
-        ctx.fillRect(this.x - barW/2, this.y - (radius + 4), barW * (this.hp / this.maxHp), 2);
+        ctx.fillStyle = '#c0392b'; ctx.fillRect(this.x - barW/2, this.y - (radius + 5), barW, 2);
+        ctx.fillStyle = '#2ecc71'; ctx.fillRect(this.x - barW/2, this.y - (radius + 5), barW * (this.hp / this.maxHp), 2);
     }
 }
 
-// --- 商店交易與品質裝備購買邏輯 ---
 function buyShopItem(itemType) {
     if (!player) return;
-
     if (itemType === 'POTION') {
-        if (playerGold >= 20) {
-            playerGold -= 20;
-            player.hp = Math.min(player.maxHp, player.hp + 50);
-        } else { alert("金幣不足！"); }
+        if (playerGold >= 20) { playerGold -= 20; player.hp = Math.min(player.maxHp, player.hp + 50); } else { alert("金幣不足！"); }
     } 
-    else if (itemType === 'W_COMMON') {
-        if (playerGold >= 40) { playerGold -= 40; player.equipAtk += 1.0; disableBtn('btn-w1'); } else { alert("金幣不足！"); }
-    }
-    else if (itemType === 'W_RARE') {
-        if (playerGold >= 100) { playerGold -= 100; player.equipAtk += 2.5; disableBtn('btn-w2'); } else { alert("金幣不足！"); }
-    }
-    else if (itemType === 'W_LEGEND') {
-        if (playerGold >= 250) { playerGold -= 250; player.equipAtk += 7.0; disableBtn('btn-w3'); } else { alert("金幣不足！"); }
-    }
-    else if (itemType === 'A_COMMON') {
-        if (playerGold >= 40) { playerGold -= 40; player.equipDef += 0.04; disableBtn('btn-a1'); } else { alert("金幣不足！"); }
-    }
-    else if (itemType === 'A_RARE') {
-        if (playerGold >= 110) { playerGold -= 110; player.equipDef += 0.12; disableBtn('btn-a2'); } else { alert("金幣不足！"); }
-    }
-    else if (itemType === 'A_LEGEND') {
-        if (playerGold >= 260) { playerGold -= 260; player.equipDef += 0.30; disableBtn('btn-a3'); } else { alert("金幣不足！"); }
-    }
+    else if (itemType === 'W_COMMON') { if (playerGold >= 40) { playerGold -= 40; player.equipAtk += 1.0; disableBtn('btn-w1'); } }
+    else if (itemType === 'W_RARE') { if (playerGold >= 100) { playerGold -= 100; player.equipAtk += 2.5; disableBtn('btn-w2'); } }
+    else if (itemType === 'W_LEGEND') { if (playerGold >= 250) { playerGold -= 250; player.equipAtk += 7.0; disableBtn('btn-w3'); } }
+    else if (itemType === 'A_COMMON') { if (playerGold >= 40) { playerGold -= 40; player.equipDef += 0.04; disableBtn('btn-a1'); } }
+    else if (itemType === 'A_RARE') { if (playerGold >= 110) { playerGold -= 110; player.equipDef += 0.12; disableBtn('btn-a2'); } }
+    else if (itemType === 'A_LEGEND') { if (playerGold >= 260) { playerGold -= 260; player.equipDef += 0.30; disableBtn('btn-a3'); } }
 }
 
 function disableBtn(id) {
-    const btn = document.getElementById(id);
-    if (btn) { btn.innerText = '已裝備'; btn.disabled = true; }
+    const btn = document.getElementById(id); if (btn) { btn.innerText = '已裝備'; btn.disabled = true; }
 }
 
 function resizeCanvasForCurrentMap() {
@@ -671,22 +624,15 @@ function spawnEnemiesForMap() {
 function initGame(classKey) {
     document.getElementById('ui-container').style.display = 'none';
     document.getElementById('game-wrapper').style.display = 'block';
-
     resizeCanvasForCurrentMap();
-    
-    const selectedClass = HERO_CLASSES[classKey];
-    player = new Hero(3, 3, selectedClass); 
+    player = new Hero(3, 3, HERO_CLASSES[classKey]); 
     spawnEnemiesForMap();
 
     window.addEventListener('keydown', e => {
         pressedKeys[e.key.toLowerCase()] = true;
-        if (e.key === ' ' || e.code === 'Space') {
-            e.preventDefault(); 
-            if (player) player.useSkill();
-        }
+        if (e.key === ' ' || e.code === 'Space') { e.preventDefault(); if (player) player.useSkill(); }
     });
     window.addEventListener('keyup', e => pressedKeys[e.key.toLowerCase()] = false);
-
     requestAnimationFrame(gameLoop);
 }
 
@@ -694,68 +640,125 @@ function gameLoop() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     let currentMap = GAME_MAPS[currentMapIndex];
 
+    // 繪製地圖
     for (let r = 0; r < currentMap.grid.length; r++) {
         for (let c = 0; c < currentMap.grid[r].length; c++) {
-            let terrainType = currentMap.grid[r][c];
-            ctx.fillStyle = TERRAIN_TYPES[terrainType].color;
+            ctx.fillStyle = TERRAIN_TYPES[currentMap.grid[r][c]].color;
             ctx.fillRect(c * TILE_SIZE, r * TILE_SIZE, TILE_SIZE, TILE_SIZE);
         }
     }
 
-    player.update();
-    player.draw();
+    // 更新與繪製史萊姆毒素液潭
+    ctx.fillStyle = "rgba(46, 204, 113, 0.4)";
+    for (let i = poisonPuddles.length - 1; i >= 0; i--) {
+        let puddle = poisonPuddles[i];
+        ctx.beginPath(); ctx.arc(puddle.x, puddle.y, 14, 0, Math.PI * 2); ctx.fill();
+        
+        let pDx = player.x - puddle.x; let pDy = player.y - puddle.y;
+        if (Math.sqrt(pDx*pDx + pDy*pDy) < 18) {
+            if (!(player.classConfig.name === '戰術指揮官' && player.skillActiveTimer > 0)) {
+                player.hp -= 0.15; // 毒素真實扣血
+            }
+        }
+        puddle.duration--;
+        if (puddle.duration <= 0) poisonPuddles.splice(i, 1);
+    }
 
+    // 更新與繪製惡魔遠程投射火球
+    for (let i = enemyProjectiles.length - 1; i >= 0; i--) {
+        let proj = enemyProjectiles[i];
+        proj.x += proj.vx; proj.y += proj.vy;
+        
+        ctx.fillStyle = '#ff3300'; ctx.beginPath(); ctx.arc(proj.x, proj.y, 5, 0, Math.PI * 2); ctx.fill();
+        
+        let hDx = player.x - proj.x; let hDy = player.y - proj.y;
+        if (Math.sqrt(hDx*hDx + hDy*hDy) < 12) {
+            let dmg = Math.max(0.2, proj.damage - player.equipDef);
+            if (player.classConfig.name === '戰術指揮官' && player.skillActiveTimer > 0) dmg = 0;
+            player.hp -= dmg;
+            enemyProjectiles.splice(i, 1);
+            continue;
+        }
+        if (proj.x < 0 || proj.x > canvas.width || proj.y < 0 || proj.y > canvas.height) {
+            enemyProjectiles.splice(i, 1);
+        }
+    }
+
+    // 更新與繪製巨龍 Boss 毀滅衝擊波
+    ctx.lineWidth = 2;
+    for (let i = dragonShockwaves.length - 1; i >= 0; i--) {
+        let wave = dragonShockwaves[i];
+        wave.radius += 2.5;
+        ctx.strokeStyle = `rgba(231, 76, 60, ${1 - wave.radius / wave.maxRadius})`;
+        ctx.beginPath(); ctx.arc(wave.x, wave.y, wave.radius, 0, Math.PI * 2); ctx.stroke();
+
+        let wDx = player.x - wave.x; let wDy = player.y - wave.y;
+        let wDist = Math.sqrt(wDx*wDx + wDy*wDy);
+        
+        // 剛好被擴散圈邊緣掃到
+        if (Math.abs(wDist - wave.radius) < 4) {
+            let dmg = Math.max(0.5, wave.damage - player.equipDef);
+            if (player.classConfig.name === '戰術指揮官' && player.skillActiveTimer > 0) dmg = 0;
+            player.hp -= dmg;
+            
+            // 強烈擊退效果
+            let pushAngle = Math.atan2(wDy, wDx);
+            player.x += Math.cos(pushAngle) * 25;
+            player.y += Math.sin(pushAngle) * 25;
+        }
+
+        if (wave.radius >= wave.maxRadius) dragonShockwaves.splice(i, 1);
+    }
+
+    player.update(); player.draw();
+
+    // 近戰魔物遭遇碰撞機制
     enemies.forEach((enemy, index) => {
-        enemy.update(currentMap.grid, player);
-        enemy.draw();
+        enemy.update(currentMap.grid, player); enemy.draw();
 
-        let dx = enemy.x - player.x;
-        let dy = enemy.y - player.y;
+        let dx = enemy.x - player.x; let dy = enemy.y - player.y;
         let dist = Math.sqrt(dx * dx + dy * dy);
-
-        // 動態碰撞體積（Boss 的碰撞範圍稍大）
-        let hitBoxSize = enemy.enemyType === 'BOSS' ? 20 : 16;
+        let hitBoxSize = enemy.typeKey === 'DRAGON' ? 22 : 16;
 
         if (dist < hitBoxSize) {
-            // 【核心戰鬥公式變更】：依據魔物專屬攻擊力扣血
+            // 魔物造成的傷害
             let finalDamageTaken = Math.max(0.1, enemy.baseAtk - player.equipDef);
-            if (player.classConfig.name === '戰術指揮官' && player.skillActiveTimer > 0) {
-                finalDamageTaken = 0;
-            }
+            if (player.classConfig.name === '戰術指揮官' && player.skillActiveTimer > 0) finalDamageTaken = 0;
             player.hp -= finalDamageTaken;
 
+            // 蝙蝠專屬技能：吸血轉換生命
+            if (enemy.typeKey === 'BAT' && finalDamageTaken > 0) {
+                enemy.hp = Math.min(enemy.maxHp, enemy.hp + finalDamageTaken * 1.0);
+            }
+
+            // 玩家反擊傷害（計算岩石生靈護盾減傷）
             let finalDamageDealt = player.baseAtk + player.equipAtk;
+            if (enemy.isShielded) finalDamageDealt *= 0.3; // 盾牌免疫70%傷害
             enemy.hp -= finalDamageDealt;
 
             if (enemy.hp <= 0) {
-                // 讀取該怪物對應的基礎金幣
-                let goldGained = WILD_ENEMY_TYPES[enemy.typeKey].gold * player.classConfig.wildKillMult;
-                if (player.classConfig.name === '賞金獵人' && player.skillActiveTimer > 0) {
-                    goldGained += 15;
-                }
+                let goldGained = Math.floor(WILD_ENEMY_TYPES[enemy.typeKey].gold * (1 + currentMapIndex * 0.3) * player.classConfig.wildKillMult);
+                if (player.classConfig.name === '賞金獵人' && player.skillActiveTimer > 0) goldGained += 20;
                 playerGold += goldGained;
                 player.gainExp(WILD_ENEMY_TYPES[enemy.typeKey].exp);
                 enemies.splice(index, 1);
             }
 
             if (player.hp <= 0) {
-                alert(`你被 ${enemy.name} 擊敗了！你最終達到了 Lv.${player.level}`);
+                alert(`探索中止！你最終倒在了深處，等級: Lv.${player.level}`);
                 window.location.reload();
             }
         }
     });
 
+    // 介面資料同步
     let totalAtk = (player.baseAtk + player.equipAtk).toFixed(1);
     let expPercent = Math.floor((player.exp / player.maxExp) * 100);
-    
     let skillText = "準備就緒";
-    if (player.skillActiveTimer > 0) {
-        skillText = `🔥 啟動中 (${Math.ceil(player.skillActiveTimer/60)}s)`;
-    } else if (player.skillCd > 0) {
-        skillText = `⏳ CD: ${(player.skillCd / 60).toFixed(1)}s`;
-    }
+    if (player.skillActiveTimer > 0) skillText = `🔥 啟動中 (${Math.ceil(player.skillActiveTimer/60)}s)`;
+    else if (player.skillCd > 0) skillText = `⏳ CD: ${(player.skillCd / 60).toFixed(1)}s`;
 
-    document.getElementById('hud-map').innerText = `區域: ${currentMap.name}`;
+    document.getElementById('hud-map').innerText = `區域: ${currentMap.name} (難度+${(currentMapIndex*40)}%)`;
     document.getElementById('hud-level').innerText = `等級: ${player.level} (${expPercent}%)`;
     document.getElementById('hud-skill').innerText = `技能: [Space] ${skillText}`;
     document.getElementById('hud-hp').innerText = `血量: ${Math.max(0, Math.floor(player.hp))}/${player.maxHp}`;
