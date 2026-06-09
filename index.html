@@ -2,189 +2,296 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>2D RPG 勇者試煉</title>
+    <title>2D RPG 勇者冒險記（完整版）</title>
     <style>
-        body { background: #2c3e50; color: #fff; text-align: center; font-family: sans-serif; }
-        canvas { background: #111; border: 4px solid #34495e; display: block; margin: 20px auto; box-shadow: 0 10px 20px rgba(0,0,0,0.3); }
-        .instructions { font-size: 14px; color: #bdc3c7; }
+        body { background: #2c3e50; color: #fff; text-align: center; font-family: sans-serif; margin: 0; padding: 20px; }
+        canvas { background: #111; border: 4px solid #34495e; display: block; margin: 10px auto; box-shadow: 0 10px 20px rgba(0,0,0,0.3); }
+        .hud { font-size: 16px; color: #f1c40f; font-weight: bold; margin-bottom: 5px; }
+        .instructions { font-size: 13px; color: #bdc3c7; }
     </style>
 </head>
 <body>
-    <h1>勇者試煉 (Hero's Quest)</h1>
-    <p class="instructions">使用 WASD 或 方向鍵 移動 | 靠近村民按下 空白鍵(Space) 對話</p>
+    <h1>勇者冒險記 - 完整核心系統</h1>
+    <div class="hud" id="hudDisplay">血量: 100/100 | 金幣: 100 | 藥水: 1 瓶</div>
+    <p class="instructions">
+        【探索】WASD/方向鍵移動 | 靠近黃色村民按 [空白鍵] 逛商店 | 走進深綠色高草叢會隨機遇敵<br>
+        【戰鬥/商店】依畫面提示按數字鍵 [1] [2] [3] 進行操作
+    </p>
     <canvas id="rpgCanvas" width="640" height="480"></canvas>
 
     <script>
         const canvas = document.getElementById('rpgCanvas');
         const ctx = canvas.getContext('2d');
 
-        const TILE_SIZE = 40; // 每個格子的大小 (40x40 像素)
-        const COLS = 16;      // 16 欄
-        const ROWS = 12;      // 12 列
+        const TILE_SIZE = 40; 
+        const COLS = 16;      
+        const ROWS = 12;      
 
-        // 遊戲狀態：'explore' (探索), 'dialogue' (對話)
+        // 遊戲狀態：'explore', 'dialogue', 'shop', 'battle'
         let gameState = 'explore'; 
         let currentDialogue = "";
 
-        // 地圖陣列：0=草地, 1=樹木/牆壁, 2=NPC村民
-        const map = [
+        // ==========================================
+        // 1. 玩家與怪物數值設定
+        // ==========================================
+        const player = {
+            x: 80, y: 80, width: 32, height: 32, speed: 4, color: '#e74c3c',
+            hp: 100, maxHp: 100, gold: 100, potions: 1, atk: 15
+        };
+
+        const enemy = { name: "野生史萊姆", hp: 0, maxHp: 40, atk: 10, rewardGold: 30 };
+
+        // 地圖網格：0=普通草地, 1=牆壁, 2=商店NPC, 3=傳送陣, 4=高草叢(會遇敵)
+        const mapGrid = [
             [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-            [1,0,0,0,1,0,0,0,0,0,0,0,0,0,0,1],
-            [1,0,0,0,1,0,0,2,0,0,0,0,0,0,0,1],
-            [1,0,0,0,1,1,1,1,1,0,0,0,0,0,0,1],
+            [1,0,0,0,1,4,4,4,4,4,4,0,0,0,0,1],
+            [1,0,0,0,1,4,4,4,4,4,4,0,0,2,0,1], // (13, 2) 是商店 NPC
+            [1,0,0,0,1,1,1,1,1,4,4,0,0,0,0,1],
             [1,0,0,0,0,0,0,0,1,0,0,0,0,0,0,1],
             [1,0,0,0,0,0,0,0,1,0,0,0,0,0,0,1],
             [1,1,1,0,1,1,1,0,1,1,1,1,0,1,1,1],
             [1,0,0,0,0,0,1,0,0,0,0,1,0,0,0,1],
-            [1,0,0,0,0,0,1,0,0,0,0,1,0,0,0,1],
-            [1,0,0,0,0,0,1,1,1,0,0,1,1,1,0,1],
-            [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+            [1,4,4,4,0,0,1,0,0,0,0,1,0,0,0,1],
+            [1,4,4,4,0,0,1,1,1,0,0,1,1,1,0,1],
+            [1,4,4,4,0,0,0,0,0,0,0,0,0,0,3,1], // (14, 10) 是傳送陣
             [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
         ];
 
-        // 玩家物件
-        const player = {
-            x: 80,
-            y: 80,
-            width: 32,
-            height: 32,
-            speed: 4,
-            color: '#e74c3c'
-        };
-
-        // 鍵盤輸入監聽
         const keys = {};
         window.addEventListener('keydown', e => { keys[e.key] = true; });
         window.addEventListener('keyup', e => { keys[e.key] = false; });
 
-        // 監聽空白鍵觸發對話
-        window.addEventListener('keypress', e => {
-            if (e.key === ' ') {
-                if (gameState === 'dialogue') {
-                    gameState = 'explore'; // 關閉對話
-                } else if (gameState === 'explore') {
-                    checkInteraction();
+        // ==========================================
+        // 2. 按鍵事件監聽（處理對話、商店、戰鬥選擇）
+        // ==========================================
+        window.addEventListener('keydown', e => {
+            if (gameState === 'dialogue' && e.key === ' ') {
+                gameState = 'explore';
+            } 
+            else if (gameState === 'shop') {
+                if (e.key === '1') { // 買藥水
+                    if (player.gold >= 25) {
+                        player.gold -= 25;
+                        player.potions++;
+                        currentDialogue = "購買成功！獲得 1 瓶生命藥水。";
+                    } else {
+                        currentDialogue = "金幣不足！藥水需要 25 金幣。";
+                    }
+                } else if (e.key === '2' || e.key === ' ') { // 離開商店
+                    gameState = 'explore';
+                }
+            } 
+            else if (gameState === 'battle') {
+                if (e.key === '1') { // 普通攻擊
+                    enemy.hp -= player.atk;
+                    currentDialogue = `你對 ${enemy.name} 造成了 ${player.atk} 點傷害！`;
+                    if (enemy.hp <= 0) {
+                        player.gold += enemy.rewardGold;
+                        currentDialogue = `勝利！擊敗了 ${enemy.name}，獲得 ${enemy.rewardGold} 金幣！`;
+                        gameState = 'dialogue';
+                    } else {
+                        enemyTurn();
+                    }
+                } else if (e.key === '2') { // 使用藥水
+                    if (player.potions > 0) {
+                        player.potions--;
+                        player.hp = Math.min(player.maxHp, player.hp + 40);
+                        currentDialogue = "你喝下了生命藥水，回復了 40 點血量！";
+                        enemyTurn();
+                    } else {
+                        currentDialogue = "身上沒有藥水了！";
+                    }
+                } else if (e.key === '3') { // 逃跑
+                    if (Math.random() < 0.5) {
+                        currentDialogue = "成功逃離了戰鬥！";
+                        gameState = 'dialogue';
+                    } else {
+                        currentDialogue = "逃跑失敗！受到了怪物的攔截！";
+                        enemyTurn();
+                    }
                 }
             }
+            updateHUD();
         });
 
-        // 檢查玩家是否在 NPC 附近
-        function checkInteraction() {
-            // 計算玩家中心點所在的網格座標
+        function enemyTurn() {
+            player.hp -= enemy.atk;
+            currentDialogue += `\n${enemy.name} 發動反擊，對你造成 ${enemy.atk} 點傷害！`;
+            if (player.hp <= 0) {
+                player.hp = 0;
+                currentDialogue = "你被打倒了...（勇者在村莊中復活，並損失了一半金幣）";
+                player.hp = player.maxHp;
+                player.gold = Math.floor(player.gold / 2);
+                player.x = 80; player.y = 80; // 回到起點
+                gameState = 'dialogue';
+            }
+        }
+
+        function updateHUD() {
+            document.getElementById('hudDisplay').innerText = 
+                `血量: ${player.hp}/${player.maxHp} | 金幣: ${player.gold} | 藥水: ${player.potions} 瓶`;
+        }
+
+        // ==========================================
+        // 3. 碰撞與特殊地形觸發檢測
+        // ==========================================
+        function isColliding(newX, newY) {
+            const corners = [
+                { x: newX, y: newY }, { x: newX + player.width, y: newY },
+                { x: newX, y: newY + player.height }, { x: newX + player.width, y: newY + player.height }
+            ];
+            for (let corner of corners) {
+                let gridX = Math.floor(corner.x / TILE_SIZE);
+                let gridY = Math.floor(corner.y / TILE_SIZE);
+                if (gridY < 0 || gridY >= ROWS || gridX < 0 || gridX >= COLS) return true;
+                if (mapGrid[gridY][gridX] === 1 || mapGrid[gridY][gridX] === 2) return true; // 牆壁與NPC不可穿過
+            }
+            return false;
+        }
+
+        function checkTileTrigger() {
             let pGridX = Math.floor((player.x + player.width/2) / TILE_SIZE);
             let pGridY = Math.floor((player.y + player.height/2) / TILE_SIZE);
+            let currentTile = mapGrid[pGridY][pGridX];
 
-            // 檢查上下左右相鄰格子是否有 NPC (值為 2)
+            // 觸發隨機遇敵（在高草叢中移動時機率觸發）
+            if (currentTile === 4 && (keys['w'] || keys['s'] || keys['a'] || keys['d'] || keys['ArrowUp'] || keys['ArrowDown'] || keys['ArrowLeft'] || keys['ArrowRight'])) {
+                if (Math.random() < 0.015) { // 每幀 1.5% 機率遇敵
+                    enemy.hp = enemy.maxHp;
+                    gameState = 'battle';
+                    currentDialogue = `遭遇 ${enemy.name}！準備戰鬥！`;
+                }
+            }
+            // 觸發傳送陣
+            if (currentTile === 3) {
+                player.x = 80; player.y = 80; // 傳送回起點做範例
+                gameState = 'dialogue';
+                currentDialogue = "踩到了傳送陣！已被傳送回起點。";
+            }
+        }
+
+        function checkNPCInteraction() {
+            let pGridX = Math.floor((player.x + player.width/2) / TILE_SIZE);
+            let pGridY = Math.floor((player.y + player.height/2) / TILE_SIZE);
             const checkOffsets = [{x:0, y:-1}, {x:0, y:1}, {x:-1, y:0}, {x:1, y:0}];
+            
             for (let offset of checkOffsets) {
-                let targetX = pGridX + offset.x;
-                let targetY = pGridY + offset.y;
-                
-                if (map[targetY] && map[targetY][targetX] === 2) {
-                    gameState = 'dialogue';
-                    currentDialogue = "村民：「勇敢的冒險者啊！村莊外面的森林最近出現了史萊姆，請加深你的鍛鍊再出發吧！」";
+                if (mapGrid[pGridY + offset.y] && mapGrid[pGridY + offset.y][pGridX + offset.x] === 2) {
+                    gameState = 'shop';
+                    currentDialogue = "商人：「歡迎來到冒險者商店！要買點補給品嗎？」";
                     return;
                 }
             }
         }
 
-        // 碰撞偵測：傳入預計移動到的新座標，回傳是否撞牆
-        function isColliding(newX, newY) {
-            // 檢查四個角來確保整個矩形都沒有深入牆壁
-            const corners = [
-                { x: newX, y: newY },
-                { x: newX + player.width, y: newY },
-                { x: newX, y: newY + player.height },
-                { x: newX + player.width, y: newY + player.height }
-            ];
-
-            for (let corner of corners) {
-                let gridX = Math.floor(corner.x / TILE_SIZE);
-                let gridY = Math.floor(corner.y / TILE_SIZE);
-
-                // 如果超出邊界，或是該格子是樹木(1)或NPC(2)，就判定為碰撞
-                if (gridY < 0 || gridY >= ROWS || gridX < 0 || gridX >= COLS) return true;
-                if (map[gridY][gridX] === 1 || map[gridY][gridX] === 2) return true;
+        // 監聽空白鍵與 NPC 對話或進入商店
+        window.addEventListener('keypress', e => {
+            if (e.key === ' ' && gameState === 'explore') {
+                checkNPCInteraction();
             }
-            return false;
-        }
+        });
 
-        // 更新遊戲邏輯
+        // ==========================================
+        // 4. 遊戲主迴圈與繪製
+        // ==========================================
         function update() {
             if (gameState === 'explore') {
-                let nextX = player.x;
-                let nextY = player.y;
-
+                let nextX = player.x; let nextY = player.y;
                 if (keys['w'] || keys['ArrowUp']) nextY -= player.speed;
                 if (keys['s'] || keys['ArrowDown']) nextY += player.speed;
                 if (keys['a'] || keys['ArrowLeft']) nextX -= player.speed;
                 if (keys['d'] || keys['ArrowRight']) nextX += player.speed;
 
-                // X 軸移動檢查
-                if (!isColliding(nextX, player.y)) {
-                    player.x = nextX;
-                }
-                // Y 軸移動檢查
-                if (!isColliding(player.x, nextY)) {
-                    player.y = nextY;
-                }
+                if (!isColliding(nextX, player.y)) player.x = nextX;
+                if (!isColliding(player.x, nextY)) player.y = nextY;
+
+                checkTileTrigger();
             }
         }
 
-        // 繪製畫面
         function draw() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-            // 1. 繪製地圖
-            for (let r = 0; r < ROWS; r++) {
-                for (let c = 0; c < COLS; c++) {
-                    if (map[r][c] === 1) {
-                        ctx.fillStyle = '#27ae60'; // 樹木/牆壁 (綠色)
-                    } else if (map[r][c] === 2) {
-                        ctx.fillStyle = '#f1c40f'; // NPC 村民 (黃色)
-                    } else {
-                        ctx.fillStyle = '#2ecc71'; // 草地 (淺綠)
+            if (gameState === 'explore' || gameState === 'dialogue' || gameState === 'shop') {
+                // 繪製地圖場景
+                for (let r = 0; r < ROWS; r++) {
+                    for (let c = 0; c < COLS; c++) {
+                        if (mapGrid[r][c] === 1) ctx.fillStyle = '#27ae60'; // 牆壁
+                        else if (mapGrid[r][c] === 2) ctx.fillStyle = '#f1c40f'; // 商店 NPC
+                        else if (mapGrid[r][c] === 3) ctx.fillStyle = '#3498db'; // 傳送陣
+                        else if (mapGrid[r][c] === 4) ctx.fillStyle = '#16a085'; // 高草叢（危險區）
+                        else ctx.fillStyle = '#2ecc71'; // 普通草地
+                        ctx.fillRect(c * TILE_SIZE, r * TILE_SIZE, TILE_SIZE, TILE_SIZE);
                     }
-                    ctx.fillRect(c * TILE_SIZE, r * TILE_SIZE, TILE_SIZE, TILE_SIZE);
-                    
-                    // 繪製格子邊框（網格線，正式版可拔除）
-                    ctx.strokeStyle = 'rgba(0,0,0,0.05)';
-                    ctx.strokeRect(c * TILE_SIZE, r * TILE_SIZE, TILE_SIZE, TILE_SIZE);
                 }
+                // 繪製玩家
+                ctx.fillStyle = player.color;
+                ctx.fillRect(player.x, player.y, player.width, player.height);
             }
 
-            // 2. 繪製玩家
-            ctx.fillStyle = player.color;
-            ctx.fillRect(player.x, player.y, player.width, player.height);
-
-            // 3. 繪製 UI / 對話框
+            // 繪製對話框 (Dialogue State)
             if (gameState === 'dialogue') {
-                // 對話黑框
-                ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
-                ctx.fillRect(20, canvas.height - 140, canvas.width - 40, 120);
-                ctx.strokeStyle = '#fff';
-                ctx.lineWidth = 2;
-                ctx.strokeRect(20, canvas.height - 140, canvas.width - 40, 120);
-
-                // 對話文字
+                drawOverlayBox();
                 ctx.fillStyle = '#fff';
                 ctx.font = '16px Microsoft JhengHei, sans-serif';
-                ctx.fillText(currentDialogue, 40, canvas.height - 90);
-                
+                ctx.fillText(currentDialogue, 40, canvas.height - 80);
                 ctx.fillStyle = '#bdc3c7';
-                ctx.font = '12px sans-serif';
-                ctx.fillText("按 空白鍵 繼續...", canvas.width - 140, canvas.height - 40);
+                ctx.fillText("按 [空白鍵] 繼續...", canvas.width - 150, canvas.height - 30);
+            }
+
+            // 繪製商店介面 (Shop State)
+            if (gameState === 'shop') {
+                drawOverlayBox();
+                ctx.fillStyle = '#fff';
+                ctx.font = '16px Microsoft JhengHei, sans-serif';
+                ctx.fillText(currentDialogue, 40, canvas.height - 100);
+                ctx.fillStyle = '#f1c40f';
+                ctx.fillText("[1] 購買生命藥水 (25 金幣)  |  [2] 離開商店", 40, canvas.height - 50);
+            }
+
+            // 繪製獨立戰鬥畫面 (Battle State)
+            if (gameState === 'battle') {
+                // 戰鬥背景
+                ctx.fillStyle = '#1e272e';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                // 畫出勇者與怪物區塊
+                ctx.fillStyle = player.color;
+                ctx.fillRect(100, 200, 50, 50);
+                ctx.fillStyle = '#9b59b6'; // 史萊姆紫色
+                ctx.beginPath(); ctx.arc(500, 225, 30, 0, Math.PI * 2); ctx.fill();
+
+                // 顯示血條資訊
+                ctx.fillStyle = '#fff';
+                ctx.font = '16px sans-serif';
+                ctx.fillText(`勇者 (HP: ${player.hp}/${player.maxHp})`, 80, 180);
+                ctx.fillText(`${enemy.name} (HP: ${enemy.hp}/${enemy.maxHp})`, 440, 180);
+
+                // 戰鬥操作面板
+                drawOverlayBox();
+                ctx.fillStyle = '#fff';
+                ctx.font = '14px Microsoft JhengHei, sans-serif';
+                ctx.fillText(currentDialogue, 40, canvas.height - 100);
+                ctx.fillStyle = '#e74c3c';
+                ctx.fillText("[1] 普通攻擊 ⚔️     [2] 喝生命藥水 🧪 (${player.potions} 瓶)     [3] 試圖逃跑 🏃", 40, canvas.height - 50);
             }
         }
 
-        // 遊戲主迴圈
+        function drawOverlayBox() {
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.85)';
+            ctx.fillRect(20, canvas.height - 140, canvas.width - 40, 120);
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(20, canvas.height - 140, canvas.width - 40, 120);
+        }
+
         function gameLoop() {
             update();
             draw();
             requestAnimationFrame(gameLoop);
         }
 
-        // 啟動遊戲
+        updateHUD();
         gameLoop();
     </script>
 </body>
